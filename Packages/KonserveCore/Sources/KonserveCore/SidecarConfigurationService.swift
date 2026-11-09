@@ -7,7 +7,7 @@ public enum ConfigurationError: Error, Equatable {
 
 public struct SidecarConfigurationService: ConfigurationService {
     public static let defaultURL = URL(
-        fileURLWithPath: "/Library/Application Support/SMBConnector/servers.json"
+        fileURLWithPath: "/Library/Application Support/Konserve/servers.json"
     )
 
     private let fileURL: URL

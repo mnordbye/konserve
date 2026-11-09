@@ -1,11 +1,11 @@
 import SwiftUI
 
 @main
-struct SMBConnectorApp: App {
+struct KonserveApp: App {
     @StateObject private var model = ConnectorViewModel()
 
     var body: some Scene {
-        Window("SMB Connector", id: "main") {
+        Window("Konserve", id: "main") {
             ConnectorView(model: model)
                 .frame(width: 420, height: 560)
         }

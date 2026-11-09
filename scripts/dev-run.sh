@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 "$ROOT_DIR/scripts/dev-build.sh"
-APP_PATH="$ROOT_DIR/.build/xcode/Build/Products/Debug/SMBConnector.app"
+APP_PATH="$ROOT_DIR/.build/xcode/Build/Products/Debug/Konserve.app"
 
-RUNNING_PIDS="$(/usr/bin/pgrep -x SMBConnector || true)"
+RUNNING_PIDS="$(/usr/bin/pgrep -x Konserve || true)"
 if [[ -n "$RUNNING_PIDS" ]]; then
   while IFS= read -r PID; do
     if /bin/kill -0 "$PID" 2>/dev/null; then
@@ -15,7 +15,7 @@ if [[ -n "$RUNNING_PIDS" ]]; then
   /bin/sleep 1
   while IFS= read -r PID; do
     if /bin/kill -0 "$PID" 2>/dev/null; then
-      echo "SMB Connector process $PID did not stop." >&2
+      echo "Konserve process $PID did not stop." >&2
       exit 1
     fi
   done <<< "$RUNNING_PIDS"

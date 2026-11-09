@@ -3,10 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 PRODUCTS="$ROOT_DIR/.build/release"
-ARCHIVE_PATH="$PRODUCTS/SMBConnector.xcarchive"
-APP_PATH="$ARCHIVE_PATH/Products/Applications/SMBConnector.app"
-COMPONENT_PKG="$PRODUCTS/SMBConnector-component.pkg"
-PACKAGE_PATH="$PRODUCTS/SMBConnector.pkg"
+ARCHIVE_PATH="$PRODUCTS/Konserve.xcarchive"
+APP_PATH="$ARCHIVE_PATH/Products/Applications/Konserve.app"
+COMPONENT_PKG="$PRODUCTS/Konserve-component.pkg"
+PACKAGE_PATH="$PRODUCTS/Konserve.pkg"
 
 : "${DEVELOPER_ID_APPLICATION:?Set DEVELOPER_ID_APPLICATION to the Developer ID Application identity}"
 : "${DEVELOPER_ID_INSTALLER:?Set DEVELOPER_ID_INSTALLER to the Developer ID Installer identity}"
@@ -15,8 +15,8 @@ PACKAGE_PATH="$PRODUCTS/SMBConnector.pkg"
 mkdir -p "$PRODUCTS"
 xcodebuild \
   -quiet \
-  -project "$ROOT_DIR/SMBConnector.xcodeproj" \
-  -scheme SMBConnector \
+  -project "$ROOT_DIR/Konserve.xcodeproj" \
+  -scheme Konserve \
   -configuration Release \
   -derivedDataPath "$ROOT_DIR/.build/xcode-release" \
   -archivePath "$ARCHIVE_PATH" \
@@ -29,7 +29,7 @@ xcodebuild \
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 /usr/sbin/pkgbuild --component "$APP_PATH" --install-location /Applications \
-  --identifier com.internal.SMBConnector "$COMPONENT_PKG"
+  --identifier com.internal.konserve "$COMPONENT_PKG"
 /usr/bin/productbuild --package "$COMPONENT_PKG" \
   --sign "$DEVELOPER_ID_INSTALLER" "$PACKAGE_PATH"
 pkgutil --check-signature "$PACKAGE_PATH"
@@ -38,7 +38,7 @@ xcrun stapler staple "$PACKAGE_PATH"
 xcrun stapler validate "$PACKAGE_PATH"
 /usr/sbin/spctl --assess --type install --verbose=2 "$PACKAGE_PATH"
 
-ARCHITECTURES="$(/usr/bin/lipo -archs "$APP_PATH/Contents/MacOS/SMBConnector")"
+ARCHITECTURES="$(/usr/bin/lipo -archs "$APP_PATH/Contents/MacOS/Konserve")"
 if [[ " $ARCHITECTURES " != *" arm64 "* || " $ARCHITECTURES " != *" x86_64 "* ]]; then
   echo "Expected arm64 and x86_64 slices; found: $ARCHITECTURES" >&2
   exit 1

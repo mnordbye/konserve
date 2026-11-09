@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-import SMBConnectorCore
+import KonserveCore
 
 @MainActor
 final class ConnectorViewModel: ObservableObject {
@@ -33,9 +33,9 @@ final class ConnectorViewModel: ObservableObject {
         self.keychainService = keychainService
         let arguments = Set(CommandLine.arguments)
         let environment = ProcessInfo.processInfo.environment
-        let useRealSMB = environment["SMB_CONNECTOR_USE_REAL_SMB"] == "1"
+        let useRealSMB = environment["KONSERVE_USE_REAL_SMB"] == "1"
             || arguments.contains("--use-real-smb")
-        let mockMode = environment["SMB_CONNECTOR_MOCK_MODE"]
+        let mockMode = environment["KONSERVE_MOCK_MODE"]
         let mockUnreachable = arguments.contains("--mock-unreachable") || mockMode == "unavailable"
         self.reachabilityService = reachabilityService ?? (
             useRealSMB

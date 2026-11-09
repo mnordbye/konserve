@@ -1,9 +1,9 @@
-# VS Code Starter Prompt — SMB Connector
+# VS Code Starter Prompt — Konserve
 
 Use the following prompt in the VS Code planning or agent workflow.
 
 ```text
-We are building a small native macOS application called SMB Connector.
+We are building a small native macOS application called Konserve.
 
 This is an internal application that will be distributed only through JAMF. It will not be submitted to the Mac App Store.
 
@@ -95,7 +95,7 @@ The server configuration must be optional and external to the application bundle
 
 Use this recommended machine-wide location:
 
-`/Library/Application Support/SMBConnector/servers.json`
+`/Library/Application Support/Konserve/servers.json`
 
 This allows JAMF to deploy or update the configuration without changing the signed application bundle.
 
@@ -156,9 +156,9 @@ Create these models and service boundaries:
 Suggested structure:
 
 ```text
-SMBConnector/
-├── SMBConnector.xcodeproj
-├── SMBConnector/
+Konserve/
+├── Konserve.xcodeproj
+├── Konserve/
 │   ├── App/
 │   ├── Features/
 │   │   ├── ServerStatus/
@@ -169,7 +169,7 @@ SMBConnector/
 │   ├── Models/
 │   └── Resources/
 ├── Packages/
-│   └── SMBConnectorCore/
+│   └── KonserveCore/
 ├── Tests/
 ├── scripts/
 │   ├── dev-build.sh

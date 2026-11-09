@@ -1,4 +1,4 @@
-import SMBConnectorCore
+import KonserveCore
 import SwiftUI
 
 struct ConnectorView: View {
@@ -47,7 +47,7 @@ struct ConnectorView: View {
                 .font(.title2)
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text("SMB Connector")
+                Text("Konserve")
                     .font(.title2.weight(.semibold))
                 Text("Connect to a file server")
                     .font(.subheadline)

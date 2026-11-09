@@ -1,8 +1,8 @@
-# SMB Connector — Development Flow
+# Konserve — Development Flow
 
 ## 1. Purpose
 
-SMB Connector is a small native macOS application for internal distribution through JAMF.
+Konserve is a small native macOS application for internal distribution through JAMF.
 
 The application will:
 
@@ -29,7 +29,7 @@ The implementation should remain replaceable if a better supported SMB mechanism
 
 ### System integration choice
 
-macOS exposes a public NetFS mounting API that accepts username and password in process memory, so SMB Connector uses it instead of putting credentials in a `mount_smbfs` URL or command-line arguments. Share enumeration is not exposed by the public NetFS header; discovery therefore uses `/usr/bin/smbutil view` with the password supplied through standard input to `/usr/bin/script` (a pseudo-terminal helper), never as an argument. Command output is redacted before parsing and is never logged. The current `smbutil` discovery adapter supports the standard SMB port 445 only. This is still system-tool behavior and must be verified against a real test server before release.
+macOS exposes a public NetFS mounting API that accepts username and password in process memory, so Konserve uses it instead of putting credentials in a `mount_smbfs` URL or command-line arguments. Share enumeration is not exposed by the public NetFS header; discovery therefore uses `/usr/bin/smbutil view` with the password supplied through standard input to `/usr/bin/script` (a pseudo-terminal helper), never as an argument. Command output is redacted before parsing and is never logged. The current `smbutil` discovery adapter supports the standard SMB port 445 only. This is still system-tool behavior and must be verified against a real test server before release.
 
 The alternative is a third-party SMB client library or an undocumented NetFS enumeration symbol. A library would add a dependency, update/signing surface, and ongoing protocol maintenance; the undocumented API is not a supportable contract. The initial implementation avoids both, has no additional package dependency or entitlement, and confines the system-tool adapter so it can be replaced if macOS adds a supported authenticated enumeration API.
 
@@ -93,7 +93,7 @@ Server configuration must not be embedded in the signed application bundle. This
 Recommended machine-wide path:
 
 ```text
-/Library/Application Support/SMBConnector/servers.json
+/Library/Application Support/Konserve/servers.json
 ```
 
 This path is preferable to modifying the application bundle because JAMF can update the configuration without changing the application signature.
@@ -132,7 +132,7 @@ Use macOS Keychain Services.
 Suggested Keychain identity:
 
 ```text
-service: SMBConnector/<server-id-or-host>
+service: Konserve/<server-id-or-host>
 account: <SMB username>
 ```
 
@@ -153,9 +153,9 @@ The user should be able to choose whether successful credentials are remembered.
 Use an Xcode macOS application project, with reusable logic separated into a Swift Package where practical:
 
 ```text
-SMBConnector/
-├── SMBConnector.xcodeproj
-├── SMBConnector/
+Konserve/
+├── Konserve.xcodeproj
+├── Konserve/
 │   ├── App/
 │   ├── Features/
 │   │   ├── ServerStatus/
@@ -169,7 +169,7 @@ SMBConnector/
 │   ├── Models/
 │   └── Resources/
 ├── Packages/
-│   └── SMBConnectorCore/
+│   └── KonserveCore/
 ├── Tests/
 ├── scripts/
 │   ├── dev-build.sh
@@ -244,8 +244,8 @@ Example development build:
 
 ```bash
 xcodebuild \
-  -project SMBConnector.xcodeproj \
-  -scheme SMBConnector \
+  -project Konserve.xcodeproj \
+  -scheme Konserve \
   -configuration Debug \
   -derivedDataPath .build/xcode \
   build

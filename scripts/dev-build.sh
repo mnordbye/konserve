@@ -7,8 +7,8 @@ HOST_ARCH="$(uname -m)"
 
 xcodebuild \
   -quiet \
-  -project "$ROOT_DIR/SMBConnector.xcodeproj" \
-  -scheme SMBConnector \
+  -project "$ROOT_DIR/Konserve.xcodeproj" \
+  -scheme Konserve \
   -configuration Debug \
   -destination "platform=macOS,arch=$HOST_ARCH" \
   -derivedDataPath "$DERIVED_DATA" \

@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-@testable import SMBConnectorCore
+@testable import KonserveCore
 
-struct SMBConnectorCoreTests {
+struct KonserveCoreTests {
     @Test
     func parsesConfiguredServersAndDefaultsPort() throws {
         let data = Data(#"{"servers":[{"id":"media","displayName":"Media","host":"media.example.local"}]}"#.utf8)
