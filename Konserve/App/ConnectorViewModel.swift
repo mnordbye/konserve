@@ -15,22 +15,27 @@ final class ConnectorViewModel: ObservableObject {
     @Published var selectedShareNames = Set<String>()
     @Published var statusMessage = ""
     @Published private(set) var availableShares: [SMBShare] = []
+    @Published private(set) var recentServerAddresses: [String] = []
 
     private let configurationService: any ConfigurationService
     private let keychainService: any KeychainService
     private let reachabilityService: any ServerReachabilityService
     private let smbService: any SMBService
     private let mountService: any MountService
+    private let recentAddressStore: RecentServerAddressStore
 
     init(
         configurationService: any ConfigurationService = SidecarConfigurationService(),
         keychainService: any KeychainService = SystemKeychainService(),
         reachabilityService: (any ServerReachabilityService)? = nil,
         smbService: (any SMBService)? = nil,
-        mountService: (any MountService)? = nil
+        mountService: (any MountService)? = nil,
+        recentAddressStore: RecentServerAddressStore = .standard
     ) {
         self.configurationService = configurationService
         self.keychainService = keychainService
+        self.recentAddressStore = recentAddressStore
+        self.recentServerAddresses = recentAddressStore.load()
         let arguments = Set(CommandLine.arguments)
         let environment = ProcessInfo.processInfo.environment
         let useRealSMB = environment["KONSERVE_USE_REAL_SMB"] == "1"
@@ -131,6 +136,9 @@ final class ConnectorViewModel: ObservableObject {
             availableShares = discoveredShares
             connectionState = discoveredShares.isEmpty ? .noShares : .shares(discoveredShares)
             statusMessage = discoveredShares.isEmpty ? "" : "Select one or more shares to mount."
+            if servers.isEmpty {
+                recentServerAddresses = recentAddressStore.record(server.host)
+            }
             do {
                 if rememberCredentials {
                     try keychainService.save(credentials, for: server)
@@ -145,6 +153,8 @@ final class ConnectorViewModel: ObservableObject {
         } catch {
             if case SMBServiceError.invalidCredentials = error {
                 connectionState = .failed("The username or password was not accepted. Try again.")
+            } else if case SMBServiceError.timedOut = error {
+                connectionState = .failed("Share discovery timed out. Check the server and try again.")
             } else if case SMBServiceError.unsupportedOperation = error {
                 connectionState = .failed("Share discovery currently supports SMB port 445 only.")
             } else {
@@ -185,6 +195,11 @@ final class ConnectorViewModel: ObservableObject {
         rememberCredentials = false
     }
 
+    func useRecentServerAddress(_ address: String) {
+        manualAddress = address
+        serverSelectionDidChange()
+    }
+
     func useDifferentCredentials() {
         username = ""
         password = ""
@@ -193,6 +208,32 @@ final class ConnectorViewModel: ObservableObject {
         availableShares = []
         selectedShareNames.removeAll()
         statusMessage = ""
+    }
+
+    struct RecentServerAddressStore {
+        static let standard = RecentServerAddressStore(defaults: .standard)
+
+        private let defaults: UserDefaults
+        private let key = "recentServerAddresses"
+        private let limit = 5
+
+        init(defaults: UserDefaults) {
+            self.defaults = defaults
+        }
+
+        func load() -> [String] {
+            defaults.stringArray(forKey: key) ?? []
+        }
+
+        func record(_ address: String) -> [String] {
+            let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedAddress.isEmpty else { return load() }
+            var addresses = load().filter { $0.caseInsensitiveCompare(trimmedAddress) != .orderedSame }
+            addresses.insert(trimmedAddress, at: 0)
+            let recent = Array(addresses.prefix(limit))
+            defaults.set(recent, forKey: key)
+            return recent
+        }
     }
 
     func mountSelectedShares() async {

@@ -142,6 +142,51 @@ struct KonserveCoreTests {
     }
 
     @Test
+    func systemDiscoveryTimesOutAndTerminatesTheProcess() async throws {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try Data("#!/bin/sh\nexec sleep 10\n".utf8).write(to: scriptURL)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        defer { try? FileManager.default.removeItem(at: scriptURL) }
+
+        let server = try SMBServer(id: "test", displayName: "Test", host: "example.local")
+        await #expect(throws: SMBServiceError.timedOut) {
+            try await SystemSMBService(
+                executableURL: scriptURL,
+                timeout: .milliseconds(50)
+            ).discoverShares(
+                on: server,
+                credentials: SMBCredentials(username: "user", password: "secret")
+            )
+        }
+    }
+
+    @Test
+    func systemDiscoveryPassesPasswordToDirectSMBProcess() async throws {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try Data("""
+        #!/bin/sh
+        IFS= read -r password
+        [ "$password" = "secret" ] || exit 1
+        printf 'Share                         Type       Comments\\n'
+        printf 'Public                        Disk\\n'
+        """.utf8).write(to: scriptURL)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        defer { try? FileManager.default.removeItem(at: scriptURL) }
+
+        let server = try SMBServer(id: "test", displayName: "Test", host: "example.local")
+        let shares = try await SystemSMBService(
+            executableURL: scriptURL,
+            timeout: .seconds(1)
+        ).discoverShares(
+            on: server,
+            credentials: SMBCredentials(username: "user", password: "secret")
+        )
+        #expect(shares.map(\.name) == ["Public"])
+    }
+
+    @Test
     func reachabilityCanReportAvailableAndUnavailable() async throws {
         let server = try SMBServer(id: "test", displayName: "Test", host: "example.local")
         #expect(try await MockReachabilityService(isReachable: true).isReachable(server))

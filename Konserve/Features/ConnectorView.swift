@@ -60,13 +60,30 @@ struct ConnectorView: View {
     @ViewBuilder
     private var serverField: some View {
         if model.servers.isEmpty {
-            TextField("Server address (hostname or IP)", text: $model.manualAddress)
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
-                .disabled(model.isBusy)
-                .onChange(of: model.manualAddress) { _ in
-                    model.serverSelectionDidChange()
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Server address (hostname or IP)", text: $model.manualAddress)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .disabled(model.isBusy)
+                    .onChange(of: model.manualAddress) { _ in
+                        model.serverSelectionDidChange()
+                    }
+                if !model.recentServerAddresses.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Recent servers")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        ForEach(model.recentServerAddresses, id: \.self) { address in
+                            Button(address) {
+                                model.useRecentServerAddress(address)
+                            }
+                            .buttonStyle(.link)
+                            .font(.callout)
+                            .disabled(model.isBusy)
+                        }
+                    }
                 }
+            }
         } else {
             Picker("Server", selection: $model.selectedServerID) {
                 ForEach(model.servers) { server in

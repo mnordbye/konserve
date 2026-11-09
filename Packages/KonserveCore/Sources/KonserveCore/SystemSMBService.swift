@@ -3,14 +3,14 @@ import NetFS
 
 public struct SystemSMBService: SMBService {
     private let executableURL: URL
-    private let terminalURL: URL
+    private let timeout: Duration
 
     public init(
         executableURL: URL = URL(fileURLWithPath: "/usr/bin/smbutil"),
-        terminalURL: URL = URL(fileURLWithPath: "/usr/bin/script")
+        timeout: Duration = .seconds(30)
     ) {
         self.executableURL = executableURL
-        self.terminalURL = terminalURL
+        self.timeout = timeout
     }
 
     public func discoverShares(on server: SMBServer, credentials: SMBCredentials) async throws -> [SMBShare] {
@@ -18,26 +18,22 @@ public struct SystemSMBService: SMBService {
             throw SMBServiceError.unsupportedOperation
         }
 
-        let process = Process()
-        process.executableURL = terminalURL
-        process.arguments = Self.arguments(
-            smbutilPath: executableURL.path,
-            host: server.host,
-            username: credentials.username
+        let process = SMBProcessExecution(
+            executableURL: executableURL,
+            arguments: Self.arguments(
+                smbutilPath: executableURL.path,
+                host: server.host,
+                username: credentials.username
+            ),
+            password: credentials.password
         )
-        let input = Pipe()
-        let output = Pipe()
-        process.standardInput = input
-        process.standardOutput = output
-        process.standardError = output
 
         do {
-            try process.run()
-            let passwordData = Data((credentials.password + "\n").utf8)
-            input.fileHandleForWriting.write(passwordData)
-            try input.fileHandleForWriting.close()
-            let rawOutput = output.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
+            let rawOutput = try await withTaskCancellationHandler {
+                try await process.run(timeout: timeout)
+            } onCancel: {
+                process.terminate()
+            }
 
             let text = ProcessOutputRedactor.redact(
                 String(decoding: rawOutput, as: UTF8.self),
@@ -57,6 +53,61 @@ public struct SystemSMBService: SMBService {
             throw error
         } catch {
             throw SMBServiceError.commandFailed
+        }
+    }
+
+    private final class SMBProcessExecution: @unchecked Sendable {
+        private let process: Process
+        private let input: Pipe
+        private let output: Pipe
+        private let password: String
+
+        init(executableURL: URL, arguments: [String], password: String) {
+            process = Process()
+            process.executableURL = executableURL
+            process.arguments = arguments
+            input = Pipe()
+            output = Pipe()
+            process.standardInput = input
+            process.standardOutput = output
+            process.standardError = output
+            self.password = password
+        }
+
+        var terminationStatus: Int32 {
+            process.terminationStatus
+        }
+
+        func run(timeout: Duration) async throws -> Data {
+            try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    try await Task.detached { [self] in
+                        try process.run()
+                        input.fileHandleForWriting.write(Data((password + "\n").utf8))
+                        try input.fileHandleForWriting.close()
+                        let data = output.fileHandleForReading.readDataToEndOfFile()
+                        process.waitUntilExit()
+                        return data
+                    }.value
+                }
+                group.addTask {
+                    try await Task.sleep(for: timeout)
+                    self.terminate()
+                    throw SMBServiceError.timedOut
+                }
+                defer {
+                    group.cancelAll()
+                }
+                return try await group.next()!
+            }
+        }
+
+        func terminate() {
+            if process.isRunning {
+                process.terminate()
+            }
+            try? input.fileHandleForWriting.close()
+            try? output.fileHandleForReading.close()
         }
     }
 

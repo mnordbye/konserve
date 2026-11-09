@@ -29,4 +29,6 @@ Mock UX variants are also available without a server: `./scripts/dev-run.sh --mo
 
 The app reads optional server definitions from `/Library/Application Support/Konserve/servers.json`. Without that file, enter a hostname or IP address manually. Passwords are never stored in the sidecar; the “Remember” option saves them in the macOS login Keychain only after a successful connection. After entering a username, press Return to load a previously remembered credential; unchecking “Remember” and connecting removes its saved Keychain item.
 
+Real SMB share discovery has a 30-second timeout. Manual server addresses that connect successfully are retained locally as up to five recent autofill suggestions; credentials are never stored with this history.
+
 See [the development flow](./docs/development-flow.md) and [manual SMB test procedure](./docs/smb-manual-testing.md). Release packaging and notarization are described in [JAMF distribution](./docs/jamf-distribution.md).

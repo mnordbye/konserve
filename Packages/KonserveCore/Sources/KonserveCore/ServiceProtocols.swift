@@ -25,6 +25,7 @@ public protocol MountService: Sendable {
 public enum SMBServiceError: Error, Equatable {
     case invalidCredentials
     case unreachable
+    case timedOut
     case commandFailed
     case invalidShareList
     case unsupportedOperation
