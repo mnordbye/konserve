@@ -21,11 +21,17 @@ The application will not use Active Directory integration initially and will not
 
 Use a native SwiftUI macOS application with AppKit integration where macOS-specific APIs are needed.
 
-The first implementation should use a dedicated `SMBService` abstraction. The initial adapter may use macOS system tools such as `smbutil` and `mount_smbfs`, but all process execution must be isolated in that service.
+The first implementation should use a dedicated `SMBService` abstraction. The current adapter uses `smbutil view` for share discovery and the public `NetFSMountURLSync` API for mounting, with all system integration isolated behind service protocols.
 
 Do not automate Finder's Connect to Server window as the primary implementation. Finder is useful as a fallback, but an in-app SMB service gives us better control over loading states, share discovery, error handling, and mounting selected shares.
 
 The implementation should remain replaceable if a better supported SMB mechanism becomes available.
+
+### System integration choice
+
+macOS exposes a public NetFS mounting API that accepts username and password in process memory, so SMB Connector uses it instead of putting credentials in a `mount_smbfs` URL or command-line arguments. Share enumeration is not exposed by the public NetFS header; discovery therefore uses `/usr/bin/smbutil view` with the password supplied through standard input to `/usr/bin/script` (a pseudo-terminal helper), never as an argument. Command output is redacted before parsing and is never logged. The current `smbutil` discovery adapter supports the standard SMB port 445 only. This is still system-tool behavior and must be verified against a real test server before release.
+
+The alternative is a third-party SMB client library or an undocumented NetFS enumeration symbol. A library would add a dependency, update/signing surface, and ongoing protocol maintenance; the undocumented API is not a supportable contract. The initial implementation avoids both, has no additional package dependency or entitlement, and confines the system-tool adapter so it can be replaced if macOS adds a supported authenticated enumeration API.
 
 ## 3. User experience
 
@@ -168,9 +174,12 @@ SMBConnector/
 ├── scripts/
 │   ├── dev-build.sh
 │   ├── dev-run.sh
-│   └── verify-release.sh
+│   ├── test.sh
+│   └── release-package.sh
 ├── docs/
 │   ├── development-flow.md
+│   ├── jamf-distribution.md
+│   ├── smb-manual-testing.md
 │   └── vscode-starter-prompt.md
 └── README.md
 ```
