@@ -122,7 +122,6 @@ struct KonserveCoreTests {
         #expect(!output.contains(password))
 
         let arguments = SystemSMBService.arguments(
-            smbutilPath: "/usr/bin/smbutil",
             host: "media.example.local",
             username: "smb-user"
         )
@@ -167,6 +166,7 @@ struct KonserveCoreTests {
             .appendingPathComponent(UUID().uuidString)
         try Data("""
         #!/bin/sh
+        printf 'Password:\n'
         IFS= read -r password
         [ "$password" = "secret" ] || exit 1
         printf 'Share                         Type       Comments\\n'

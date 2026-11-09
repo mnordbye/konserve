@@ -1,5 +1,9 @@
 import Foundation
 import NetFS
+import Darwin
+import os
+
+private let smbLogger = Logger(subsystem: "com.internal.konserve", category: "SMB")
 
 public struct SystemSMBService: SMBService {
     private let executableURL: URL
@@ -18,10 +22,10 @@ public struct SystemSMBService: SMBService {
             throw SMBServiceError.unsupportedOperation
         }
 
+        smbLogger.notice("Starting share discovery on SMB port \(server.port)")
         let process = SMBProcessExecution(
             executableURL: executableURL,
             arguments: Self.arguments(
-                smbutilPath: executableURL.path,
                 host: server.host,
                 username: credentials.username
             ),
@@ -37,61 +41,95 @@ public struct SystemSMBService: SMBService {
 
             let text = ProcessOutputRedactor.redact(
                 String(decoding: rawOutput, as: UTF8.self),
-                sensitiveValues: [credentials.password]
+                sensitiveValues: [credentials.password, credentials.username, server.host]
             )
+            smbLogger.debug("smbutil exited with status \(process.terminationStatus); output: \(text, privacy: .public)")
             guard process.terminationStatus == 0 else {
                 if text.localizedCaseInsensitiveContains("authentication")
                     || text.localizedCaseInsensitiveContains("denied")
                     || text.localizedCaseInsensitiveContains("logon_failure")
                 {
+                    smbLogger.error("smbutil reported an authentication failure")
                     throw SMBServiceError.invalidCredentials
                 }
+                smbLogger.error("smbutil failed with status \(process.terminationStatus)")
                 throw SMBServiceError.commandFailed
             }
-            return try SMBShareListParser.parse(text)
+            do {
+                let shares = try SMBShareListParser.parse(text)
+                smbLogger.notice("Share discovery completed with \(shares.count) disk share(s)")
+                return shares
+            } catch {
+                smbLogger.error("smbutil returned an unrecognized share list")
+                throw error
+            }
         } catch let error as SMBServiceError {
             throw error
         } catch {
+            smbLogger.error("Share discovery failed before parsing output")
             throw SMBServiceError.commandFailed
         }
     }
 
     private final class SMBProcessExecution: @unchecked Sendable {
-        private let process: Process
-        private let input: Pipe
-        private let output: Pipe
+        private let executableURL: URL
+        private let arguments: [String]
         private let password: String
+        private let lock = NSLock()
+        private var masterFileHandle: FileHandle?
+        private var processID: pid_t?
+        private var status: Int32 = -1
 
         init(executableURL: URL, arguments: [String], password: String) {
-            process = Process()
-            process.executableURL = executableURL
-            process.arguments = arguments
-            input = Pipe()
-            output = Pipe()
-            process.standardInput = input
-            process.standardOutput = output
-            process.standardError = output
+            self.executableURL = executableURL
+            self.arguments = arguments
             self.password = password
         }
 
         var terminationStatus: Int32 {
-            process.terminationStatus
+            lock.lock()
+            defer { lock.unlock() }
+            return status
         }
 
         func run(timeout: Duration) async throws -> Data {
             try await withThrowingTaskGroup(of: Data.self) { group in
                 group.addTask {
                     try await Task.detached { [self] in
-                        try process.run()
-                        input.fileHandleForWriting.write(Data((password + "\n").utf8))
-                        try input.fileHandleForWriting.close()
-                        let data = output.fileHandleForReading.readDataToEndOfFile()
-                        process.waitUntilExit()
+                        var master: Int32 = -1
+                        let processID = forkpty(&master, nil, nil, nil)
+                        guard processID >= 0 else {
+                            throw SMBServiceError.commandFailed
+                        }
+                        if processID == 0 {
+                            Self.execute(executableURL: executableURL, arguments: arguments)
+                        }
+                        let masterHandle = FileHandle(fileDescriptor: master, closeOnDealloc: true)
+                        store(master: masterHandle, processID: processID)
+                        smbLogger.notice("SMB PTY created")
+                        smbLogger.notice("SMB helper process started")
+                        guard fcntl(master, F_SETFL, O_NONBLOCK) == 0 else {
+                            throw SMBServiceError.commandFailed
+                        }
+                        smbLogger.notice("Waiting for SMB password prompt")
+                        var data = try Self.readPTY(master, untilFirstByte: true)
+                        smbLogger.notice("SMB password prompt received")
+                        try masterHandle.write(contentsOf: Data((password + "\n").utf8))
+                        smbLogger.notice("SMB password input submitted")
+                        smbLogger.notice("Waiting for SMB helper output")
+                        data.append(try Self.readPTY(master, untilFirstByte: false))
+                        var waitStatus: Int32 = 0
+                        waitpid(processID, &waitStatus, 0)
+                        setStatus(waitStatus)
+                        smbLogger.notice("SMB helper process exited")
+                        try masterHandle.close()
+                        clearHandle()
                         return data
                     }.value
                 }
                 group.addTask {
                     try await Task.sleep(for: timeout)
+                    smbLogger.error("SMB discovery timeout fired")
                     self.terminate()
                     throw SMBServiceError.timedOut
                 }
@@ -103,20 +141,76 @@ public struct SystemSMBService: SMBService {
         }
 
         func terminate() {
-            if process.isRunning {
-                process.terminate()
+            lock.lock()
+            let processID = self.processID
+            let master = masterFileHandle
+            lock.unlock()
+            if let processID {
+                kill(processID, SIGKILL)
+                kill(-processID, SIGKILL)
             }
-            try? input.fileHandleForWriting.close()
-            try? output.fileHandleForReading.close()
+            try? master?.close()
+        }
+
+        private func store(master: FileHandle, processID: pid_t) {
+            lock.lock()
+            masterFileHandle = master
+            self.processID = processID
+            lock.unlock()
+        }
+
+        private func clearHandle() {
+            lock.lock()
+            masterFileHandle = nil
+            lock.unlock()
+        }
+
+        private func setStatus(_ waitStatus: Int32) {
+            lock.lock()
+            if waitStatus & 0x7F == 0 {
+                status = (waitStatus >> 8) & 0xFF
+            } else {
+                status = 128 + (waitStatus & 0x7F)
+            }
+            lock.unlock()
+        }
+
+        private static func execute(executableURL: URL, arguments: [String]) -> Never {
+            let argumentStrings = [executableURL.path] + arguments
+            var cArguments = argumentStrings.map { strdup($0) }
+            cArguments.append(nil)
+            execv(cArguments[0], &cArguments)
+            _exit(127)
+        }
+
+        private static func readPTY(_ fileDescriptor: Int32, untilFirstByte: Bool) throws -> Data {
+            var data = Data()
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while true {
+                let count = Darwin.read(fileDescriptor, &buffer, buffer.count)
+                if count > 0 {
+                    data.append(buffer, count: count)
+                    if untilFirstByte {
+                        return data
+                    }
+                    continue
+                }
+                if count == 0 {
+                    return data
+                }
+                guard errno == EAGAIN || errno == EWOULDBLOCK else {
+                    throw SMBServiceError.commandFailed
+                }
+                usleep(10_000)
+            }
         }
     }
 
     public static func arguments(
-        smbutilPath: String,
         host: String,
         username: String
     ) -> [String] {
-        ["-q", "/dev/null", smbutilPath, "view", "//\(username)@\(host)"]
+        ["view", "//\(username)@\(host)"]
     }
 }
 

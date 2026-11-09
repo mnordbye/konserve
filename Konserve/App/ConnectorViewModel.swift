@@ -157,6 +157,10 @@ final class ConnectorViewModel: ObservableObject {
                 connectionState = .failed("Share discovery timed out. Check the server and try again.")
             } else if case SMBServiceError.unsupportedOperation = error {
                 connectionState = .failed("Share discovery currently supports SMB port 445 only.")
+            } else if case SMBServiceError.invalidShareList = error {
+                connectionState = .failed("The server returned a share list Konserve could not read.")
+            } else if case SMBServiceError.commandFailed = error {
+                connectionState = .failed("The SMB command failed. Check the Console diagnostic log for details.")
             } else {
                 connectionState = .failed("Could not connect to this server. Check your details and try again.")
             }
