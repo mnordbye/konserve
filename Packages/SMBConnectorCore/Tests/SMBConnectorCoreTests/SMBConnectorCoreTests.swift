@@ -58,6 +58,23 @@ struct SMBConnectorCoreTests {
     }
 
     @Test
+    func parsesTabSeparatedAndCaseVariantSMBOutput() throws {
+        let output = """
+        Share\tType\tComments
+        Team Archive\tDisk\tShared documents
+        Media Library\tdisk\tMovies
+        IPC$\tPipe\tRemote IPC
+        """
+        #expect(try SMBShareListParser.parse(output).map(\.name) == ["Team Archive", "Media Library"])
+    }
+
+    @Test
+    func parserStripsTerminalColorSequences() throws {
+        let output = "\u{001B}[32mShare                         Type\u{001B}[0m\n\u{001B}[32mPublic                        Disk\u{001B}[0m\n"
+        #expect(try SMBShareListParser.parse(output).map(\.name) == ["Public"])
+    }
+
+    @Test
     func invalidCredentialsAndUnreachableServersRemainExplicit() async throws {
         let server = try SMBServer(id: "test", displayName: "Test", host: "example.local")
         let credentials = SMBCredentials(username: "user", password: "secret")

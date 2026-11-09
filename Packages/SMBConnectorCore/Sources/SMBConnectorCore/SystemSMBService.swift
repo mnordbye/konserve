@@ -81,17 +81,36 @@ public enum ProcessOutputRedactor {
 
 public enum SMBShareListParser {
     public static func parse(_ output: String) throws -> [SMBShare] {
-        let hasShareHeader = output.components(separatedBy: .newlines).contains {
+        let cleanedOutput = output.replacingOccurrences(
+            of: #"\x{001B}\[[0-?]*[ -/]*[@-~]"#,
+            with: "",
+            options: .regularExpression
+        )
+        let lines = cleanedOutput.components(separatedBy: .newlines)
+        let hasShareHeader = lines.contains {
             $0.localizedCaseInsensitiveContains("Share")
                 && $0.localizedCaseInsensitiveContains("Type")
         }
         guard hasShareHeader else {
             throw SMBServiceError.invalidShareList
         }
-        let pattern = #"^(.+?)\s{2,}(Disk|Pipe)\b"#
-        let expression = try NSRegularExpression(pattern: pattern)
+        let pattern = #"^(.+?)(?: {2,}|\t+)(Disk|Pipe)\b"#
+        let expression = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
         var shares: [SMBShare] = []
-        for line in output.components(separatedBy: .newlines) {
+        for line in lines {
+            let tabSeparatedFields = line.split(separator: "\t", omittingEmptySubsequences: false)
+            if tabSeparatedFields.count >= 2 {
+                let type = tabSeparatedFields[1].trimmingCharacters(in: .whitespaces)
+                guard type.caseInsensitiveCompare("Disk") == .orderedSame else { continue }
+                let name = tabSeparatedFields[0].trimmingCharacters(in: .whitespaces)
+                do {
+                    shares.append(try SMBShare(name: name))
+                } catch {
+                    throw SMBServiceError.invalidShareList
+                }
+                continue
+            }
+
             let range = NSRange(line.startIndex..<line.endIndex, in: line)
             guard let match = expression.firstMatch(in: line, range: range),
                   let nameRange = Range(match.range(at: 1), in: line),
