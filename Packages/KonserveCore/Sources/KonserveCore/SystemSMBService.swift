@@ -281,22 +281,15 @@ public struct SystemMountService: MountService {
     public init() {}
 
     public func mount(_ share: SMBShare, on server: SMBServer, credentials: SMBCredentials) async throws -> URL {
+        smbLogger.notice("Starting mount for selected SMB share")
         var components = URLComponents()
         components.scheme = "smb"
         components.host = server.host
         components.port = server.port == 445 ? nil : server.port
         components.path = "/" + share.name
         guard let remoteURL = components.url else {
+            smbLogger.error("Could not construct SMB mount URL")
             throw SMBServiceError.mountFailed(-1)
-        }
-
-        let mountURL = URL(fileURLWithPath: "/Volumes/\(share.name)", isDirectory: true)
-        if !FileManager.default.fileExists(atPath: mountURL.path) {
-            do {
-                try FileManager.default.createDirectory(at: mountURL, withIntermediateDirectories: false)
-            } catch {
-                throw SMBServiceError.mountFailed(-1)
-            }
         }
 
         let openOptions = NSMutableDictionary()
@@ -304,17 +297,23 @@ public struct SystemMountService: MountService {
         var mountedPaths: Unmanaged<CFArray>?
         let status = NetFSMountURLSync(
             remoteURL as CFURL,
-            mountURL as CFURL,
+            nil,
             credentials.username as CFString,
             credentials.password as CFString,
             openOptions as CFMutableDictionary,
             nil,
             &mountedPaths
         )
-        _ = mountedPaths?.takeRetainedValue()
+        smbLogger.notice("NetFS mount returned status \(status)")
         guard status == 0 else {
             throw SMBServiceError.mountFailed(Int32(status))
         }
-        return mountURL
+        guard let mountedPathArray = mountedPaths?.takeRetainedValue(),
+              let mountedPath = (mountedPathArray as NSArray).firstObject as? String
+        else {
+            smbLogger.error("NetFS reported success without returning a mount path")
+            throw SMBServiceError.mountFailed(-1)
+        }
+        return URL(fileURLWithPath: mountedPath, isDirectory: true)
     }
 }

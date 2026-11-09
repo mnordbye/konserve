@@ -257,7 +257,11 @@ final class ConnectorViewModel: ObservableObject {
             connectionState = coordinator.state
             statusMessage = "Mounted \(mountedNames.count) share\(mountedNames.count == 1 ? "" : "s")."
         } catch {
-            connectionState = .failed("A selected share could not be mounted.")
+            if case SMBServiceError.mountFailed(let status) = error {
+                connectionState = .failed("The selected share could not be mounted (NetFS status \(status)).")
+            } else {
+                connectionState = .failed("A selected share could not be mounted.")
+            }
             statusMessage = ""
         }
     }
