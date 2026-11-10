@@ -196,7 +196,7 @@ final class ConnectorViewModel: ObservableObject {
         activeServers.removeAll()
         password = ""
         rememberCredentials = false
-        addToConfiguration = false
+        addToConfiguration = isCurrentServerConfigured
         connectionState = .idle
         availableShares = []
         selectedShareNames.removeAll()
@@ -215,8 +215,7 @@ final class ConnectorViewModel: ObservableObject {
         serverSelectionDidChange()
     }
 
-    func useDifferentCredentials() {
-        username = ""
+    func returnToConnectionForm() {
         password = ""
         rememberCredentials = false
         addToConfiguration = false
@@ -266,10 +265,21 @@ final class ConnectorViewModel: ObservableObject {
 
     private func addServerToConfigurationIfRequested(_ server: SMBServer) {
         guard addToConfiguration,
-              !servers.contains(where: { $0.id == server.id })
+              !servers.contains(where: {
+                  $0.id == server.id
+                      || $0.endpoints.contains { $0.host.caseInsensitiveCompare(server.host) == .orderedSame }
+              })
         else { return }
 
         _ = saveServers(servers + [server])
+    }
+
+    private var isCurrentServerConfigured: Bool {
+        let host = manualAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !host.isEmpty else { return false }
+        return servers.contains {
+            $0.endpoints.contains { $0.host.caseInsensitiveCompare(host) == .orderedSame }
+        }
     }
 
     @discardableResult

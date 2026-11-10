@@ -75,17 +75,30 @@ struct ConnectorView: View {
                 Text("Available Servers")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    ForEach(model.servers) { server in
-                        Button(server.displayName) {
-                            model.useConfiguredServer(server)
+                Group {
+                    if model.servers.count == 1 {
+                        HStack {
+                            Spacer()
+                            configuredServerButton(model.servers[0])
+                            Spacer()
                         }
-                        .buttonStyle(.bordered)
-                        .font(.callout)
-                        .disabled(model.isBusy)
+                    } else {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)
+                            ],
+                            alignment: .center,
+                            spacing: 16
+                        ) {
+                            ForEach(model.servers) { server in
+                                configuredServerButton(server)
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
             }
             TextField("Server address (hostname or IP)", text: $model.manualAddress)
                 .textFieldStyle(.roundedBorder)
@@ -95,6 +108,26 @@ struct ConnectorView: View {
                     model.serverSelectionDidChange()
                 }
         }
+    }
+
+    private func configuredServerButton(_ server: SMBServer) -> some View {
+        Button {
+            model.useConfiguredServer(server)
+        } label: {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(color(for: model.availability[server.id] ?? .unchecked))
+                    .frame(width: 9, height: 9)
+                    .accessibilityLabel(label(for: model.availability[server.id] ?? .unchecked))
+                Text(server.displayName)
+                    .lineLimit(1)
+            }
+            .frame(minWidth: 150)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .padding(.horizontal, 4)
+        .disabled(model.isBusy)
     }
 
     private var credentialsForm: some View {
@@ -117,7 +150,7 @@ struct ConnectorView: View {
             Toggle("Remember credentials", isOn: $model.rememberCredentials)
                 .font(.callout)
                 .disabled(model.isBusy)
-            Toggle("Add server to configuration", isOn: $model.addToConfiguration)
+            Toggle("Remember Server", isOn: $model.addToConfiguration)
                 .font(.callout)
                 .disabled(model.isBusy)
             Button {
@@ -134,6 +167,18 @@ struct ConnectorView: View {
 
     private var shareContent: some View {
         VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Spacer()
+                Button {
+                    model.returnToConnectionForm()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .accessibilityLabel("Back to server connection")
+                }
+                .buttonStyle(.borderless)
+                .disabled(model.isBusy)
+            }
             if case .noShares = model.connectionState {
                 Text("No shares are available for this account on this server.")
                     .font(.callout)
@@ -141,7 +186,9 @@ struct ConnectorView: View {
             } else {
                 Text("Available shares")
                     .font(.headline)
-                List(model.shares) { share in
+                List(model.shares.sorted {
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }) { share in
                     Toggle(share.name, isOn: Binding(
                         get: { model.selectedShareNames.contains(share.name) },
                         set: { selected in
@@ -164,12 +211,6 @@ struct ConnectorView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(model.selectedShareNames.isEmpty || model.isBusy)
             }
-            Button("Use different credentials") {
-                model.useDifferentCredentials()
-            }
-            .buttonStyle(.link)
-            .font(.callout)
-            .disabled(model.isBusy)
         }
     }
 
