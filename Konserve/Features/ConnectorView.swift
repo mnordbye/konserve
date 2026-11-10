@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ConnectorView: View {
     @ObservedObject var model: ConnectorViewModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingSettings = false
 
     var body: some View {
@@ -37,8 +38,14 @@ struct ConnectorView: View {
             Spacer(minLength: 0)
             serverAvailability
         }
-        .task {
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
             await model.checkConfiguredServers()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard !Task.isCancelled else { return }
+                await model.checkConfiguredServers()
+            }
         }
         .sheet(isPresented: $showingSettings) {
             ServerSettingsView(model: model)
@@ -205,9 +212,13 @@ struct ConnectorView: View {
                         Text(server.displayName)
                             .font(.caption)
                         Spacer()
-                        Text(label(for: model.availability[server.id] ?? .unchecked))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        if let availability = model.availability[server.id],
+                           availability != .unchecked,
+                           availability != .reachable {
+                            Text(label(for: availability))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }

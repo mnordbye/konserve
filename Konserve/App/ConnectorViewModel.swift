@@ -24,6 +24,7 @@ final class ConnectorViewModel: ObservableObject {
     private let mountService: any MountService
     private let recentAddressStore: RecentServerAddressStore
     private var activeServers: [String: SMBServer] = [:]
+    private var isCheckingAvailability = false
 
     init(
         configurationService: any ConfigurationService = SidecarConfigurationService(),
@@ -81,6 +82,10 @@ final class ConnectorViewModel: ObservableObject {
     }
 
     func checkConfiguredServers() async {
+        guard !isCheckingAvailability else { return }
+        isCheckingAvailability = true
+        defer { isCheckingAvailability = false }
+
         for server in servers {
             availability[server.id] = .checking
             var hadError = false
@@ -300,6 +305,9 @@ final class ConnectorViewModel: ObservableObject {
                 serverSelectionDidChange()
             }
             statusMessage = ""
+            Task {
+                await checkConfiguredServers()
+            }
             return true
         } catch {
             statusMessage = "The server configuration could not be saved."
