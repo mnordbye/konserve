@@ -49,7 +49,7 @@ struct ConnectorView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Konserve")
                     .font(.title2.weight(.semibold))
-                Text("Connect to a file server")
+                Text("Connect to a server")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -100,7 +100,7 @@ struct ConnectorView: View {
 
     private var credentialsForm: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("SMB username", text: $model.username)
+            TextField("Username", text: $model.username)
                 .textFieldStyle(.roundedBorder)
                 .textContentType(.username)
                 .autocorrectionDisabled()
@@ -115,7 +115,7 @@ struct ConnectorView: View {
                 .textFieldStyle(.roundedBorder)
                 .textContentType(.password)
                 .disabled(model.isBusy)
-            Toggle("Remember in this Mac’s Keychain", isOn: $model.rememberCredentials)
+            Toggle("Remember credentials", isOn: $model.rememberCredentials)
                 .font(.callout)
                 .disabled(model.isBusy)
             Button {
@@ -179,9 +179,6 @@ struct ConnectorView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("Reachability only")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
             if model.servers.isEmpty {
                 Text("Add a server in the sidecar configuration to monitor availability.")
