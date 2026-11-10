@@ -90,13 +90,13 @@ Availability means that the server can be reached. It does not imply that the cu
 
 Server configuration must not be embedded in the signed application bundle. This allows the same application build to be deployed to different environments through JAMF.
 
-Recommended machine-wide path:
+Recommended shared path:
 
 ```text
-/Library/Application Support/Konserve/servers.json
+/Users/Shared/Konserve/servers.json
 ```
 
-This path is preferable to modifying the application bundle because JAMF can update the configuration without changing the application signature.
+This path is writable by all intended local users without administrator prompts, while JAMF can deploy the initial configuration without modifying the application signature.
 
 Example:
 
@@ -106,8 +106,10 @@ Example:
     {
       "id": "media",
       "displayName": "Media Server",
-      "host": "media.example.local",
-      "port": 445
+      "endpoints": [
+        { "host": "media-wifi.example.local", "port": 445 },
+        { "host": "media-wired.example.local", "port": 445 }
+      ]
     },
     {
       "id": "archive",

@@ -18,7 +18,26 @@ Before JAMF deployment:
 1. Confirm both Developer ID certificates and the notary profile are valid on the release machine.
 2. Run the package script and retain the notarization submission ID and build logs in the approved release system.
 3. Verify the PKG on a clean test Mac with `pkgutil --check-signature Konserve.pkg` and `spctl --assess --type install --verbose=2 Konserve.pkg`.
-4. Deploy the PKG and optional `/Library/Application Support/Konserve/servers.json` sidecar through a JAMF test group.
+4. Deploy the PKG and optional `/Users/Shared/Konserve/servers.json` sidecar through a JAMF test group. Ensure the shared directory and file are writable by all intended local users.
 5. Confirm the installed app launches, reaches the intended SMB servers, and mounts shares with the expected permissions before broad deployment.
 
 The sidecar file contains server metadata only. Never place passwords, signing credentials, or notarization credentials in the PKG scripts or configuration file.
+
+Example:
+
+```json
+{
+  "servers": [
+    {
+      "id": "media",
+      "displayName": "Media Server",
+      "endpoints": [
+        { "host": "media-wifi.example.local", "port": 445 },
+        { "host": "media-wired.example.local", "port": 445 }
+      ]
+    }
+  ]
+}
+```
+
+Endpoints are tried in array order. The app preserves compatibility with the earlier single `host` and `port` format.

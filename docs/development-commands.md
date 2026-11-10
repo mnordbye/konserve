@@ -161,7 +161,7 @@ The automated tests use mocks and do not connect to a real SMB server.
 The optional machine-wide configuration file is:
 
 ```text
-/Library/Application Support/Konserve/servers.json
+/Users/Shared/Konserve/servers.json
 ```
 
 Example:
@@ -172,8 +172,10 @@ Example:
     {
       "id": "media",
       "displayName": "Media Server",
-      "host": "media.example.local",
-      "port": 445
+      "endpoints": [
+        { "host": "media-wifi.example.local", "port": 445 },
+        { "host": "media-wired.example.local", "port": 445 }
+      ]
     }
   ]
 }
@@ -183,8 +185,10 @@ The file contains server metadata only. Never put usernames or passwords in
 it. If the file does not exist, Konserve displays a manual server-address
 field.
 
-The sidecar is normally deployed by JAMF. Creating or updating it may require
-administrator privileges.
+The sidecar is normally deployed by JAMF, but can also be created and edited
+from the app using the gear button in the server availability section. It is
+shared by local users, so the directory and file must be writable by the
+intended users.
 
 ## Swift package development
 

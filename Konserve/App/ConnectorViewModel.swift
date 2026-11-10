@@ -23,6 +23,7 @@ final class ConnectorViewModel: ObservableObject {
     private let smbService: any SMBService
     private let mountService: any MountService
     private let recentAddressStore: RecentServerAddressStore
+    private var activeServers: [String: SMBServer] = [:]
 
     init(
         configurationService: any ConfigurationService = SidecarConfigurationService(),
@@ -82,13 +83,20 @@ final class ConnectorViewModel: ObservableObject {
     func checkConfiguredServers() async {
         for server in servers {
             availability[server.id] = .checking
-            do {
-                availability[server.id] = try await reachabilityService.isReachable(server)
-                    ? .reachable
-                    : .unavailable
-            } catch {
-                availability[server.id] = .error
+            var hadError = false
+            var reachable = false
+            for endpoint in server.endpoints {
+                do {
+                    let endpointServer = try server.using(endpoint)
+                    if try await reachabilityService.isReachable(endpointServer) {
+                        reachable = true
+                        break
+                    }
+                } catch {
+                    hadError = true
+                }
             }
+            availability[server.id] = reachable ? .reachable : (hadError ? .error : .unavailable)
         }
     }
 
@@ -108,21 +116,22 @@ final class ConnectorViewModel: ObservableObject {
         availableShares = []
         connectionState = .checkingServer
         statusMessage = "Checking server…"
-        let isReachable: Bool
+        let reachableServer: SMBServer?
         do {
-            isReachable = try await reachabilityService.isReachable(server)
+            reachableServer = try await firstReachableServer(for: server)
         } catch {
             availability[server.id] = .error
             connectionState = .failed("Could not check the server connection.")
             statusMessage = ""
             return
         }
-        guard isReachable else {
+        guard let reachableServer else {
             availability[server.id] = .unavailable
             connectionState = .failed("The server is unavailable. Check the address and try again.")
             statusMessage = ""
             return
         }
+        activeServers[server.id] = reachableServer
         availability[server.id] = .reachable
         do {
             connectionState = .authenticating
@@ -132,7 +141,7 @@ final class ConnectorViewModel: ObservableObject {
             connectionState = .findingShares
             statusMessage = "Finding available shares…"
             let credentials = SMBCredentials(username: username, password: password)
-            let discoveredShares = try await smbService.discoverShares(on: server, credentials: credentials)
+            let discoveredShares = try await smbService.discoverShares(on: reachableServer, credentials: credentials)
             availableShares = discoveredShares
             connectionState = discoveredShares.isEmpty ? .noShares : .shares(discoveredShares)
             statusMessage = discoveredShares.isEmpty ? "" : "Select one or more shares to mount."
@@ -141,9 +150,9 @@ final class ConnectorViewModel: ObservableObject {
             }
             do {
                 if rememberCredentials {
-                    try keychainService.save(credentials, for: server)
+                    try keychainService.save(credentials, for: reachableServer)
                 } else {
-                    try keychainService.deleteCredentials(for: server, username: username)
+                    try keychainService.deleteCredentials(for: reachableServer, username: username)
                 }
             } catch {
                 statusMessage = rememberCredentials
@@ -185,6 +194,7 @@ final class ConnectorViewModel: ObservableObject {
     }
 
     func serverSelectionDidChange() {
+        activeServers.removeAll()
         password = ""
         rememberCredentials = false
         connectionState = .idle
@@ -241,7 +251,7 @@ final class ConnectorViewModel: ObservableObject {
     }
 
     func mountSelectedShares() async {
-        guard let server = selectedServer(), !selectedShareNames.isEmpty else { return }
+        guard let server = selectedConnectionServer(), !selectedShareNames.isEmpty else { return }
         connectionState = .mounting
         statusMessage = "Mounting selected shares…"
         let credentials = SMBCredentials(username: username, password: password)
@@ -276,6 +286,52 @@ final class ConnectorViewModel: ObservableObject {
         } catch {
             statusMessage = "The server configuration could not be loaded."
         }
+    }
+
+    @discardableResult
+    func saveServers(_ updatedServers: [SMBServer]) -> Bool {
+        do {
+            try configurationService.saveServers(updatedServers)
+            servers = updatedServers
+            activeServers.removeAll()
+            availability = Dictionary(uniqueKeysWithValues: updatedServers.map { ($0.id, .unchecked) })
+            if !updatedServers.contains(where: { $0.id == selectedServerID }) {
+                selectedServerID = updatedServers.first?.id ?? ""
+                serverSelectionDidChange()
+            }
+            statusMessage = ""
+            return true
+        } catch {
+            statusMessage = "The server configuration could not be saved."
+            return false
+        }
+    }
+
+    func deleteServer(_ server: SMBServer) {
+        saveServers(servers.filter { $0.id != server.id })
+    }
+
+    private func selectedConnectionServer() -> SMBServer? {
+        guard let server = selectedServer() else { return nil }
+        return activeServers[server.id] ?? server
+    }
+
+    private func firstReachableServer(for server: SMBServer) async throws -> SMBServer? {
+        var hadError = false
+        for endpoint in server.endpoints {
+            let endpointServer = try server.using(endpoint)
+            do {
+                if try await reachabilityService.isReachable(endpointServer) {
+                    return endpointServer
+                }
+            } catch {
+                hadError = true
+            }
+        }
+        if hadError {
+            throw SMBServiceError.unreachable
+        }
+        return nil
     }
 
     private func selectedServer() -> SMBServer? {

@@ -93,11 +93,11 @@ If a supported native macOS mechanism is more appropriate for a specific operati
 
 The server configuration must be optional and external to the application bundle.
 
-Use this recommended machine-wide location:
+Use this recommended shared location:
 
-`/Library/Application Support/Konserve/servers.json`
+`/Users/Shared/Konserve/servers.json`
 
-This allows JAMF to deploy or update the configuration without changing the signed application bundle.
+This allows JAMF to deploy the configuration without changing the signed application bundle, and allows the app to edit it without administrator prompts.
 
 Example configuration:
 
@@ -107,8 +107,10 @@ Example configuration:
     {
       "id": "media",
       "displayName": "Media Server",
-      "host": "media.example.local",
-      "port": 445
+      "endpoints": [
+        { "host": "media-wifi.example.local", "port": 445 },
+        { "host": "media-wired.example.local", "port": 445 }
+      ]
     }
   ]
 }
@@ -119,6 +121,10 @@ Do not put credentials in this file.
 If the file does not exist, the application must still work. Show a server-address field and allow the user to enter a hostname or IP address manually.
 
 Create a `ConfigurationService` protocol so another configuration source can be added later.
+
+The app provides a gear button for adding, editing, reordering, and deleting
+servers. Endpoints are tried from top to bottom; the first reachable endpoint
+is used for the current connection.
 
 ## Credentials
 

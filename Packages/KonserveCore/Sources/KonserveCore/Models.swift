@@ -4,19 +4,20 @@ public enum SMBModelError: Error, Equatable {
     case invalidHost
     case invalidPort
     case invalidShareName
+    case noEndpoints
 }
 
-public struct SMBServer: Codable, Equatable, Identifiable, Sendable {
-    public let id: String
-    public let displayName: String
+public struct SMBEndpoint: Codable, Equatable, Identifiable, Sendable {
     public let host: String
     public let port: Int
 
-    public init(id: String, displayName: String, host: String, port: Int = 445) throws {
+    public var id: String {
+        "\(host):\(port)"
+    }
+
+    public init(host: String, port: Int = 445) throws {
         let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !trimmedHost.isEmpty,
+        guard !trimmedHost.isEmpty,
               !trimmedHost.contains("://"),
               !trimmedHost.contains("/"),
               !trimmedHost.contains("@"),
@@ -27,24 +28,87 @@ public struct SMBServer: Codable, Equatable, Identifiable, Sendable {
         guard (1...65535).contains(port) else {
             throw SMBModelError.invalidPort
         }
-        self.id = id
-        self.displayName = displayName
         self.host = trimmedHost
         self.port = port
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, displayName, host, port
+        case host, port
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
-            id: values.decode(String.self, forKey: .id),
-            displayName: values.decode(String.self, forKey: .displayName),
             host: values.decode(String.self, forKey: .host),
             port: values.decodeIfPresent(Int.self, forKey: .port) ?? 445
         )
+    }
+}
+
+public struct SMBServer: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let displayName: String
+    public let endpoints: [SMBEndpoint]
+
+    public var host: String {
+        endpoints[0].host
+    }
+
+    public var port: Int {
+        endpoints[0].port
+    }
+
+    public init(id: String, displayName: String, host: String, port: Int = 445) throws {
+        try self.init(
+            id: id,
+            displayName: displayName,
+            endpoints: [SMBEndpoint(host: host, port: port)]
+        )
+    }
+
+    public init(id: String, displayName: String, endpoints: [SMBEndpoint]) throws {
+        guard !endpoints.isEmpty else {
+            throw SMBModelError.noEndpoints
+        }
+        guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            throw SMBModelError.invalidHost
+        }
+        self.id = id
+        self.displayName = displayName
+        self.endpoints = endpoints
+    }
+
+    public func using(_ endpoint: SMBEndpoint) throws -> SMBServer {
+        try SMBServer(id: id, displayName: displayName, endpoints: [endpoint])
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, displayName, host, port, endpoints
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let id = try values.decode(String.self, forKey: .id)
+        let displayName = try values.decode(String.self, forKey: .displayName)
+        if let endpoints = try values.decodeIfPresent([SMBEndpoint].self, forKey: .endpoints) {
+            try self.init(id: id, displayName: displayName, endpoints: endpoints)
+        } else {
+            try self.init(
+                id: id,
+                displayName: displayName,
+                host: values.decode(String.self, forKey: .host),
+                port: values.decodeIfPresent(Int.self, forKey: .port) ?? 445
+            )
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encode(endpoints, forKey: .endpoints)
     }
 }
 

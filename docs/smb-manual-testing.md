@@ -2,7 +2,7 @@
 
 Use a non-production test SMB server and a dedicated test account. Verify against an Apple Silicon Mac and an Intel Mac when both are available.
 
-1. Deploy `/Library/Application Support/Konserve/servers.json` with one valid test server. Confirm the application loads the server and its reachability indicator changes independently of credentials.
+1. Deploy `/Users/Shared/Konserve/servers.json` with one valid test server. Confirm the application loads the server and its reachability indicator changes independently of credentials.
 2. Launch the Debug app with `KONSERVE_USE_REAL_SMB=1`.
 3. Enter a valid username and password without enabling “Remember.” Connect and confirm the share list contains only disk shares visible to that account.
 4. Connect with an invalid password. Confirm the app reports a retryable authentication error without displaying raw tool output.

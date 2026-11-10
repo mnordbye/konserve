@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ConnectorView: View {
     @ObservedObject var model: ConnectorViewModel
+    @State private var showingSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,6 +39,9 @@ struct ConnectorView: View {
         }
         .task {
             await model.checkConfiguredServers()
+        }
+        .sheet(isPresented: $showingSettings) {
+            ServerSettingsView(model: model)
         }
     }
 
@@ -179,6 +183,13 @@ struct ConnectorView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .accessibilityLabel("Configure servers")
+                }
+                .buttonStyle(.borderless)
             }
             if model.servers.isEmpty {
                 Text("Add a server in the sidecar configuration to monitor availability.")

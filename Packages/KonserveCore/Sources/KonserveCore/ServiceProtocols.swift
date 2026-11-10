@@ -12,6 +12,7 @@ public protocol KeychainService: Sendable {
 
 public protocol ConfigurationService: Sendable {
     func loadServers() throws -> [SMBServer]?
+    func saveServers(_ servers: [SMBServer]) throws
 }
 
 public protocol ServerReachabilityService: Sendable {

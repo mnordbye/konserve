@@ -15,6 +15,39 @@ struct KonserveCoreTests {
     }
 
     @Test
+    func parsesAndWritesOrderedEndpoints() throws {
+        let data = Data("""
+        {"servers":[{"id":"media","displayName":"Media","endpoints":[
+          {"host":"media-wifi.example.local"},
+          {"host":"media-wired.example.local","port":1445}
+        ]}]}
+        """.utf8)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try data.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = SidecarConfigurationService(fileURL: url)
+        let servers = try service.loadServers()
+        #expect(servers?.first?.endpoints.map(\.host) == ["media-wifi.example.local", "media-wired.example.local"])
+        #expect(servers?.first?.endpoints.last?.port == 1445)
+
+        try service.saveServers(servers ?? [])
+        let saved = try service.loadServers()
+        #expect(saved == servers)
+    }
+
+    @Test
+    func legacySingleHostConfigurationStillLoads() throws {
+        let data = Data(#"{"servers":[{"id":"media","displayName":"Media","host":"media.example.local"}]}"#.utf8)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try data.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let server = try #require(SidecarConfigurationService(fileURL: url).loadServers()?.first)
+        #expect(server.endpoints == [try SMBEndpoint(host: "media.example.local")])
+    }
+
+    @Test
     func missingConfigurationEnablesManualAddressMode() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         #expect(try SidecarConfigurationService(fileURL: url).loadServers() == nil)
