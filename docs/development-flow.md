@@ -263,7 +263,7 @@ The initial scripts should support:
 ./scripts/test.sh
 ```
 
-Use a mock SMB service during early UI development so the panel, loading state, share list, empty state, and error states can be tested without a live server.
+The application always uses the real SMB services during development and release runs. Mock service implementations remain available through dependency injection for automated tests, which do not connect to a live server.
 
 ## 10. Development phases
 
@@ -275,7 +275,7 @@ Use a mock SMB service during early UI development so the panel, loading state, 
 - Add build, run, and test scripts.
 - Commit the clean starting project.
 
-### Phase 2 — Mock-first UI
+### Phase 2 — Application UI
 
 - Build the compact fixed panel.
 - Add server status indicators.

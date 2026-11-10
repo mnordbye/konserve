@@ -19,13 +19,11 @@ Open the repository folder in VS Code for editing and terminal work. Open [`Kons
 ./scripts/test.sh
 ```
 
-By default, the app uses mock SMB, reachability, and mount services so the UI can be exercised without a server. To use the system SMB services during a development launch:
+The app always uses the system SMB, reachability, and mount services. Run the application with:
 
 ```bash
-./scripts/dev-run.sh --use-real-smb
+./scripts/dev-run.sh
 ```
-
-Mock UX variants are also available without a server: `./scripts/dev-run.sh --mock-empty`, `--mock-invalid-credentials`, `--mock-unreachable`, or `--mock-mount-failure`.
 
 The app reads and edits the shared server definition file at `/Users/Shared/Konserve/servers.json`. Without that file, enter a hostname or IP address manually. Passwords are never stored in the sidecar; the “Remember” option saves them in the macOS login Keychain only after a successful connection. After entering a username, press Return to load a previously remembered credential; unchecking “Remember” and connecting removes its saved Keychain item.
 

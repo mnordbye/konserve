@@ -89,42 +89,10 @@ This command:
 After changing Swift source files, run the command again. This is the
 replacement for a web application's hot reload workflow.
 
-Arguments after the script are passed to the app:
+The application always uses the real macOS SMB and NetFS services:
 
 ```bash
-./scripts/dev-run.sh --mock-empty
-```
-
-## Mock development modes
-
-Mock services are enabled by default. This allows UI development without a
-live SMB server, credentials, or network access.
-
-```bash
-# Normal successful mock flow
 ./scripts/dev-run.sh
-
-# Successful authentication with no shares
-./scripts/dev-run.sh --mock-empty
-
-# Authentication failure
-./scripts/dev-run.sh --mock-invalid-credentials
-
-# Unreachable server status
-./scripts/dev-run.sh --mock-unreachable
-
-# Mount failure
-./scripts/dev-run.sh --mock-mount-failure
-```
-
-These modes are useful for checking loading, error, empty, and mount states.
-
-## Run against a real SMB server
-
-Use the real macOS SMB and NetFS services explicitly:
-
-```bash
-./scripts/dev-run.sh --use-real-smb
 ```
 
 The real implementation uses:
@@ -137,7 +105,7 @@ Real-server testing requires an authorized server and credentials. Do not put
 passwords in shell history, command-line arguments, configuration files, or
 source code.
 
-For the detailed test procedure, see
+For the detailed real-server test procedure, see
 [`smb-manual-testing.md`](./smb-manual-testing.md).
 
 ## Run automated tests
@@ -288,7 +256,7 @@ pgrep -x Konserve
 For a wording or layout change:
 
 1. Edit `Konserve/Features/ConnectorView.swift` in VS Code.
-2. Run `./scripts/dev-run.sh`.
+2. Run `./scripts/dev-run.sh` against an authorized SMB server.
 3. Check the updated app panel.
 4. Run `./scripts/test.sh` after service or model changes.
 
@@ -297,5 +265,3 @@ For a service or parsing change:
 1. Edit the relevant file under `Packages/KonserveCore/`.
 2. Run `./scripts/test.sh`.
 3. Run `./scripts/dev-run.sh` to verify the app still builds and launches.
-4. Use `./scripts/dev-run.sh --use-real-smb` only when testing against an
-   authorized real SMB server.

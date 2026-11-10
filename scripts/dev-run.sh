@@ -21,4 +21,4 @@ if [[ -n "$RUNNING_PIDS" ]]; then
   done <<< "$RUNNING_PIDS"
 fi
 
-/usr/bin/open -n "$APP_PATH" --args "$@"
+/usr/bin/open -n -a "$APP_PATH"

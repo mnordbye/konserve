@@ -34,33 +34,9 @@ final class ConnectorViewModel: ObservableObject {
     ) {
         self.configurationService = configurationService
         self.keychainService = keychainService
-        let arguments = Set(CommandLine.arguments)
-        let environment = ProcessInfo.processInfo.environment
-        let useRealSMB = environment["KONSERVE_USE_REAL_SMB"] == "1"
-            || arguments.contains("--use-real-smb")
-        let mockMode = environment["KONSERVE_MOCK_MODE"]
-        let mockUnreachable = arguments.contains("--mock-unreachable") || mockMode == "unavailable"
-        self.reachabilityService = reachabilityService ?? (
-            useRealSMB
-                ? TCPReachabilityService()
-                : MockReachabilityService(isReachable: !mockUnreachable)
-        )
-        if let smbService {
-            self.smbService = smbService
-        } else if useRealSMB {
-            self.smbService = SystemSMBService()
-        } else if arguments.contains("--mock-invalid-credentials") || mockMode == "invalid-credentials" {
-            self.smbService = MockSMBService(result: .invalidCredentials)
-        } else if arguments.contains("--mock-empty") || mockMode == "empty" {
-            self.smbService = MockSMBService(result: .success([]))
-        } else {
-            self.smbService = MockSMBService()
-        }
-        self.mountService = mountService ?? (
-            useRealSMB
-                ? SystemMountService()
-                : MockMountService(shouldFail: arguments.contains("--mock-mount-failure"))
-        )
+        self.reachabilityService = reachabilityService ?? TCPReachabilityService()
+        self.smbService = smbService ?? SystemSMBService()
+        self.mountService = mountService ?? SystemMountService()
         loadConfiguration()
     }
 
