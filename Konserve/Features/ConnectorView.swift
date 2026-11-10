@@ -244,13 +244,6 @@ struct ConnectorView: View {
                         Text(server.displayName)
                             .font(.caption)
                         Spacer()
-                        if let availability = model.availability[server.id],
-                           availability != .unchecked,
-                           availability != .reachable {
-                            Text(label(for: availability))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
                     }
                 }
             }
