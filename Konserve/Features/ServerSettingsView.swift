@@ -131,6 +131,7 @@ private struct ServerEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var displayName: String
     @State private var endpointDrafts: [EndpointDraft]
+    @State private var usesFallbackHosts: Bool
     @State private var errorMessage = ""
 
     init(server: SMBServer?, onSave: @escaping (SMBServer) -> Void) {
@@ -138,6 +139,7 @@ private struct ServerEditorView: View {
         self.onSave = onSave
         _displayName = State(initialValue: server?.displayName ?? "")
         _endpointDrafts = State(initialValue: server?.endpoints.map(EndpointDraft.init) ?? [EndpointDraft()])
+        _usesFallbackHosts = State(initialValue: (server?.endpoints.count ?? 1) > 1)
     }
 
     var body: some View {
@@ -148,41 +150,31 @@ private struct ServerEditorView: View {
             TextField("Display name", text: $displayName)
                 .textFieldStyle(.roundedBorder)
 
-            Text("Endpoints (tried in order)")
-                .font(.headline)
+            if usesFallbackHosts {
+                Text("Hostnames are tried in the order shown.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
 
-            List {
-                ForEach($endpointDrafts) { $endpoint in
-                    HStack(spacing: 8) {
-                        Image(systemName: "line.3.horizontal")
-                            .foregroundStyle(.secondary)
-                        TextField("Hostname or IP address", text: $endpoint.host)
-                            .textFieldStyle(.roundedBorder)
-                            .autocorrectionDisabled()
-                        TextField("Port", text: $endpoint.port)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 60)
-                        Button {
-                            endpointDrafts.removeAll { $0.id == endpoint.id }
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
-                                .accessibilityLabel("Remove endpoint")
-                        }
-                        .buttonStyle(.borderless)
+                List {
+                    ForEach($endpointDrafts) { endpoint in
+                        endpointRow(endpoint, removable: endpointDrafts.count > 1)
                     }
+                    .onMove { endpointDrafts.move(fromOffsets: $0, toOffset: $1) }
                 }
-                .onMove { endpointDrafts.move(fromOffsets: $0, toOffset: $1) }
-            }
-            .listStyle(.inset)
-            .frame(minHeight: 120)
+                .listStyle(.inset)
+                .frame(minHeight: 120)
 
-            Button {
-                endpointDrafts.append(EndpointDraft())
-            } label: {
-                Label("Add endpoint", systemImage: "plus")
+                Button {
+                    endpointDrafts.append(EndpointDraft())
+                } label: {
+                    Label("Add fallback hostname", systemImage: "plus")
+                }
+                .buttonStyle(.link)
+            } else {
+                endpointRow($endpointDrafts[0], removable: false)
             }
-            .buttonStyle(.link)
+
+            Toggle("Multiple Hostnames", isOn: $usesFallbackHosts)
 
             if !errorMessage.isEmpty {
                 Text(errorMessage)
@@ -208,7 +200,8 @@ private struct ServerEditorView: View {
 
     private func save() {
         do {
-            let endpoints = try endpointDrafts.map { try $0.endpoint() }
+            let drafts = usesFallbackHosts ? endpointDrafts : Array(endpointDrafts.prefix(1))
+            let endpoints = try drafts.map { try $0.endpoint() }
             let saved = try SMBServer(
                 id: server?.id ?? UUID().uuidString,
                 displayName: displayName,
@@ -221,6 +214,34 @@ private struct ServerEditorView: View {
             errorMessage = "Enter a valid port between 1 and 65535."
         } catch {
             errorMessage = "Enter a valid display name and hostname."
+        }
+    }
+
+    private func endpointRow(
+        _ endpoint: Binding<EndpointDraft>,
+        removable: Bool
+    ) -> some View {
+        HStack(spacing: 8) {
+            if usesFallbackHosts {
+                Image(systemName: "line.3.horizontal")
+                    .foregroundStyle(.secondary)
+            }
+            TextField("Hostname or IP address", text: endpoint.host)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+            TextField("Port", text: endpoint.port)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 60)
+            if removable {
+                Button {
+                    endpointDrafts.removeAll { $0.id == endpoint.wrappedValue.id }
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundStyle(.red)
+                        .accessibilityLabel("Remove hostname")
+                }
+                .buttonStyle(.borderless)
+            }
         }
     }
 }
