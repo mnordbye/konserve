@@ -31,6 +31,6 @@ The app reads and edits the shared server definition file at `/Users/Shared/Kons
 
 Use the gear button in the server availability section to add, edit, reorder, or delete configured servers. Each server can contain multiple endpoints; they are tried from top to bottom and the first reachable endpoint is used.
 
-Real SMB share discovery has a 30-second timeout. Manual server addresses that connect successfully are retained locally as up to five recent autofill suggestions; credentials are never stored with this history.
+Real SMB share discovery has a 30-second timeout. A manually entered server can be added to the shared configuration after a successful connection; credentials are never stored in that configuration.
 
 See [the development flow](./docs/development-flow.md) and [manual SMB test procedure](./docs/smb-manual-testing.md). Release packaging and notarization are described in [JAMF distribution](./docs/jamf-distribution.md).

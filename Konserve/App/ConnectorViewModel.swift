@@ -10,19 +10,18 @@ final class ConnectorViewModel: ObservableObject {
     @Published var username = ""
     @Published var password = ""
     @Published var rememberCredentials = false
+    @Published var addToConfiguration = false
     @Published var connectionState: SMBConnectionState = .idle
     @Published var availability: [String: ServerAvailability] = [:]
     @Published var selectedShareNames = Set<String>()
     @Published var statusMessage = ""
     @Published private(set) var availableShares: [SMBShare] = []
-    @Published private(set) var recentServerAddresses: [String] = []
 
     private let configurationService: any ConfigurationService
     private let keychainService: any KeychainService
     private let reachabilityService: any ServerReachabilityService
     private let smbService: any SMBService
     private let mountService: any MountService
-    private let recentAddressStore: RecentServerAddressStore
     private var activeServers: [String: SMBServer] = [:]
     private var isCheckingAvailability = false
 
@@ -31,13 +30,10 @@ final class ConnectorViewModel: ObservableObject {
         keychainService: any KeychainService = SystemKeychainService(),
         reachabilityService: (any ServerReachabilityService)? = nil,
         smbService: (any SMBService)? = nil,
-        mountService: (any MountService)? = nil,
-        recentAddressStore: RecentServerAddressStore = .standard
+        mountService: (any MountService)? = nil
     ) {
         self.configurationService = configurationService
         self.keychainService = keychainService
-        self.recentAddressStore = recentAddressStore
-        self.recentServerAddresses = recentAddressStore.load()
         let arguments = Set(CommandLine.arguments)
         let environment = ProcessInfo.processInfo.environment
         let useRealSMB = environment["KONSERVE_USE_REAL_SMB"] == "1"
@@ -150,9 +146,7 @@ final class ConnectorViewModel: ObservableObject {
             availableShares = discoveredShares
             connectionState = discoveredShares.isEmpty ? .noShares : .shares(discoveredShares)
             statusMessage = discoveredShares.isEmpty ? "" : "Select one or more shares to mount."
-            if servers.isEmpty {
-                recentServerAddresses = recentAddressStore.record(server.host)
-            }
+            addServerToConfigurationIfRequested(server)
             do {
                 if rememberCredentials {
                     try keychainService.save(credentials, for: reachableServer)
@@ -202,6 +196,7 @@ final class ConnectorViewModel: ObservableObject {
         activeServers.removeAll()
         password = ""
         rememberCredentials = false
+        addToConfiguration = false
         connectionState = .idle
         availableShares = []
         selectedShareNames.removeAll()
@@ -214,8 +209,9 @@ final class ConnectorViewModel: ObservableObject {
         rememberCredentials = false
     }
 
-    func useRecentServerAddress(_ address: String) {
-        manualAddress = address
+    func useConfiguredServer(_ server: SMBServer) {
+        selectedServerID = server.id
+        manualAddress = server.endpoints[0].host
         serverSelectionDidChange()
     }
 
@@ -223,36 +219,11 @@ final class ConnectorViewModel: ObservableObject {
         username = ""
         password = ""
         rememberCredentials = false
+        addToConfiguration = false
         connectionState = .idle
         availableShares = []
         selectedShareNames.removeAll()
         statusMessage = ""
-    }
-
-    struct RecentServerAddressStore {
-        static let standard = RecentServerAddressStore(defaults: .standard)
-
-        private let defaults: UserDefaults
-        private let key = "recentServerAddresses"
-        private let limit = 5
-
-        init(defaults: UserDefaults) {
-            self.defaults = defaults
-        }
-
-        func load() -> [String] {
-            defaults.stringArray(forKey: key) ?? []
-        }
-
-        func record(_ address: String) -> [String] {
-            let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedAddress.isEmpty else { return load() }
-            var addresses = load().filter { $0.caseInsensitiveCompare(trimmedAddress) != .orderedSame }
-            addresses.insert(trimmedAddress, at: 0)
-            let recent = Array(addresses.prefix(limit))
-            defaults.set(recent, forKey: key)
-            return recent
-        }
     }
 
     func mountSelectedShares() async {
@@ -291,6 +262,14 @@ final class ConnectorViewModel: ObservableObject {
         } catch {
             statusMessage = "The server configuration could not be loaded."
         }
+    }
+
+    private func addServerToConfigurationIfRequested(_ server: SMBServer) {
+        guard addToConfiguration,
+              !servers.contains(where: { $0.id == server.id })
+        else { return }
+
+        _ = saveServers(servers + [server])
     }
 
     @discardableResult
@@ -343,10 +322,11 @@ final class ConnectorViewModel: ObservableObject {
     }
 
     private func selectedServer() -> SMBServer? {
-        if !servers.isEmpty {
-            return servers.first(where: { $0.id == selectedServerID })
-        }
         let host = manualAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let configuredServer = servers.first(where: { $0.id == selectedServerID }),
+           configuredServer.endpoints.contains(where: { $0.host.caseInsensitiveCompare(host) == .orderedSame }) {
+            return configuredServer
+        }
         guard !host.isEmpty else { return nil }
         return try? SMBServer(id: "manual-\(host.lowercased())", displayName: host, host: host)
     }

@@ -70,42 +70,30 @@ struct ConnectorView: View {
 
     @ViewBuilder
     private var serverField: some View {
-        if model.servers.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("Server address (hostname or IP)", text: $model.manualAddress)
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .disabled(model.isBusy)
-                    .onChange(of: model.manualAddress) { _ in
-                        model.serverSelectionDidChange()
-                    }
-                if !model.recentServerAddresses.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Recent servers")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        ForEach(model.recentServerAddresses, id: \.self) { address in
-                            Button(address) {
-                                model.useRecentServerAddress(address)
-                            }
-                            .buttonStyle(.link)
-                            .font(.callout)
-                            .disabled(model.isBusy)
+        VStack(alignment: .leading, spacing: 8) {
+            if !model.servers.isEmpty {
+                Text("Available Servers")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    ForEach(model.servers) { server in
+                        Button(server.displayName) {
+                            model.useConfiguredServer(server)
                         }
+                        .buttonStyle(.bordered)
+                        .font(.callout)
+                        .disabled(model.isBusy)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-        } else {
-            Picker("Server", selection: $model.selectedServerID) {
-                ForEach(model.servers) { server in
-                    Text(server.displayName).tag(server.id)
+            TextField("Server address (hostname or IP)", text: $model.manualAddress)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+                .disabled(model.isBusy)
+                .onChange(of: model.manualAddress) { _ in
+                    model.serverSelectionDidChange()
                 }
-            }
-            .pickerStyle(.menu)
-            .disabled(model.isBusy)
-            .onChange(of: model.selectedServerID) { _ in
-                model.serverSelectionDidChange()
-            }
         }
     }
 
@@ -127,6 +115,9 @@ struct ConnectorView: View {
                 .textContentType(.password)
                 .disabled(model.isBusy)
             Toggle("Remember credentials", isOn: $model.rememberCredentials)
+                .font(.callout)
+                .disabled(model.isBusy)
+            Toggle("Add server to configuration", isOn: $model.addToConfiguration)
                 .font(.callout)
                 .disabled(model.isBusy)
             Button {
@@ -186,7 +177,7 @@ struct ConnectorView: View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
             HStack(spacing: 6) {
-                Text("SERVER AVAILABILITY")
+                Text("AVAILABLE SERVERS")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
