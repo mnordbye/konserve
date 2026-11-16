@@ -16,6 +16,12 @@ if [[ "$ICON_NAME" != "AppIcon" ]]; then
   exit 1
 fi
 
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
+if [[ -x "$LSREGISTER" ]]; then
+  "$LSREGISTER" -u "$APP_PATH" >/dev/null 2>&1 || true
+  "$LSREGISTER" -f "$APP_PATH" >/dev/null
+fi
+
 RUNNING_PIDS="$(/usr/bin/pgrep -x Konserve || true)"
 if [[ -n "$RUNNING_PIDS" ]]; then
   while IFS= read -r PID; do

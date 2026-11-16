@@ -75,6 +75,11 @@ test -f "$APP_PATH/Contents/Resources/AppIcon.icns"
 plutil -p "$APP_PATH/Contents/Info.plist" | grep -E 'CFBundleIcon(File|Name)'
 ```
 
+`dev-run.sh` unregisters and force-registers this exact rebuilt bundle with
+Launch Services before opening it. The app also assigns the bundled
+`AppIcon.icns` to the macOS application at startup. These two steps keep the
+Dock icon stable when development builds recreate the app at the same path.
+
 You can also run the equivalent command directly:
 
 ```bash
