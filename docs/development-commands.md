@@ -58,6 +58,23 @@ The script builds the native macOS app with `xcodebuild` and places it at:
 .build/xcode/Build/Products/Debug/Konserve.app
 ```
 
+The app icon is sourced from `Konserve/Assets.xcassets/AppIcon.appiconset`
+and the target uses the explicit `Konserve/Info.plist` for both Debug and
+Release builds. The build should produce:
+
+```text
+Konserve.app/Contents/Resources/AppIcon.icns
+Konserve.app/Contents/Resources/Assets.car
+```
+
+To verify the bundle metadata:
+
+```bash
+APP_PATH=".build/xcode/Build/Products/Debug/Konserve.app"
+test -f "$APP_PATH/Contents/Resources/AppIcon.icns"
+plutil -p "$APP_PATH/Contents/Info.plist" | grep -E 'CFBundleIcon(File|Name)'
+```
+
 You can also run the equivalent command directly:
 
 ```bash
