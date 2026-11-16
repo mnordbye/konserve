@@ -1,8 +1,8 @@
-# SMB Connector — Development Flow
+# Konserve — Development Flow
 
 ## 1. Purpose
 
-SMB Connector is a small native macOS application for internal distribution through JAMF.
+Konserve is a small native macOS application for internal distribution through JAMF.
 
 The application will:
 
@@ -21,11 +21,17 @@ The application will not use Active Directory integration initially and will not
 
 Use a native SwiftUI macOS application with AppKit integration where macOS-specific APIs are needed.
 
-The first implementation should use a dedicated `SMBService` abstraction. The initial adapter may use macOS system tools such as `smbutil` and `mount_smbfs`, but all process execution must be isolated in that service.
+The first implementation should use a dedicated `SMBService` abstraction. The current adapter uses `smbutil view` for share discovery and the public `NetFSMountURLSync` API for mounting, with all system integration isolated behind service protocols.
 
 Do not automate Finder's Connect to Server window as the primary implementation. Finder is useful as a fallback, but an in-app SMB service gives us better control over loading states, share discovery, error handling, and mounting selected shares.
 
 The implementation should remain replaceable if a better supported SMB mechanism becomes available.
+
+### System integration choice
+
+macOS exposes a public NetFS mounting API that accepts username and password in process memory, so Konserve uses it instead of putting credentials in a `mount_smbfs` URL or command-line arguments. Share enumeration is not exposed by the public NetFS header; discovery therefore uses `/usr/bin/smbutil view` in a private pseudo-terminal created with `forkpty`, giving its interactive password prompt a controlling terminal while the password is never placed in an argument. Command output is redacted before parsing and is never logged. The current `smbutil` discovery adapter supports the standard SMB port 445 only. This is still system-tool behavior and must be verified against a real test server before release.
+
+The alternative is a third-party SMB client library or an undocumented NetFS enumeration symbol. A library would add a dependency, update/signing surface, and ongoing protocol maintenance; the undocumented API is not a supportable contract. The initial implementation avoids both, has no additional package dependency or entitlement, and confines the system-tool adapter so it can be replaced if macOS adds a supported authenticated enumeration API.
 
 ## 3. User experience
 
@@ -84,13 +90,13 @@ Availability means that the server can be reached. It does not imply that the cu
 
 Server configuration must not be embedded in the signed application bundle. This allows the same application build to be deployed to different environments through JAMF.
 
-Recommended machine-wide path:
+Recommended shared path:
 
 ```text
-/Library/Application Support/SMBConnector/servers.json
+/Users/Shared/Konserve/servers.json
 ```
 
-This path is preferable to modifying the application bundle because JAMF can update the configuration without changing the application signature.
+This path is writable by all intended local users without administrator prompts, while JAMF can deploy the initial configuration without modifying the application signature.
 
 Example:
 
@@ -100,8 +106,10 @@ Example:
     {
       "id": "media",
       "displayName": "Media Server",
-      "host": "media.example.local",
-      "port": 445
+      "endpoints": [
+        { "host": "media-wifi.example.local", "port": 445 },
+        { "host": "media-wired.example.local", "port": 445 }
+      ]
     },
     {
       "id": "archive",
@@ -126,7 +134,7 @@ Use macOS Keychain Services.
 Suggested Keychain identity:
 
 ```text
-service: SMBConnector/<server-id-or-host>
+service: Konserve/<server-id-or-host>
 account: <SMB username>
 ```
 
@@ -147,9 +155,9 @@ The user should be able to choose whether successful credentials are remembered.
 Use an Xcode macOS application project, with reusable logic separated into a Swift Package where practical:
 
 ```text
-SMBConnector/
-├── SMBConnector.xcodeproj
-├── SMBConnector/
+Konserve/
+├── Konserve.xcodeproj
+├── Konserve/
 │   ├── App/
 │   ├── Features/
 │   │   ├── ServerStatus/
@@ -163,14 +171,17 @@ SMBConnector/
 │   ├── Models/
 │   └── Resources/
 ├── Packages/
-│   └── SMBConnectorCore/
+│   └── KonserveCore/
 ├── Tests/
 ├── scripts/
 │   ├── dev-build.sh
 │   ├── dev-run.sh
-│   └── verify-release.sh
+│   ├── test.sh
+│   └── release-package.sh
 ├── docs/
 │   ├── development-flow.md
+│   ├── jamf-distribution.md
+│   ├── smb-manual-testing.md
 │   └── vscode-starter-prompt.md
 └── README.md
 ```
@@ -235,8 +246,8 @@ Example development build:
 
 ```bash
 xcodebuild \
-  -project SMBConnector.xcodeproj \
-  -scheme SMBConnector \
+  -project Konserve.xcodeproj \
+  -scheme Konserve \
   -configuration Debug \
   -derivedDataPath .build/xcode \
   build
@@ -252,7 +263,7 @@ The initial scripts should support:
 ./scripts/test.sh
 ```
 
-Use a mock SMB service during early UI development so the panel, loading state, share list, empty state, and error states can be tested without a live server.
+The application always uses the real SMB services during development and release runs. Mock service implementations remain available through dependency injection for automated tests, which do not connect to a live server.
 
 ## 10. Development phases
 
@@ -264,7 +275,7 @@ Use a mock SMB service during early UI development so the panel, loading state, 
 - Add build, run, and test scripts.
 - Commit the clean starting project.
 
-### Phase 2 — Mock-first UI
+### Phase 2 — Application UI
 
 - Build the compact fixed panel.
 - Add server status indicators.
