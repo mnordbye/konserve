@@ -1,6 +1,6 @@
 # Konserve
 
-Konserve is a compact native macOS app for connecting to SMB servers and mounting selected shares. It is intended for internal JAMF distribution.
+Konserve is a compact native macOS app for connecting to SMB servers and mounting selected shares. It is distributed as a signed and notarized macOS package.
 
 ## Development
 
@@ -31,4 +31,4 @@ Use the gear button in the server availability section to add, edit, reorder, or
 
 Real SMB share discovery has a 30-second timeout. A manually entered server can be added to the shared configuration after a successful connection; credentials are never stored in that configuration.
 
-See [the development flow](./docs/development-flow.md) and [manual SMB test procedure](./docs/smb-manual-testing.md). Release packaging and notarization are described in [JAMF distribution](./docs/jamf-distribution.md).
+See [the development flow](./docs/development-flow.md) and [manual SMB test procedure](./docs/smb-manual-testing.md). Release packaging and notarization are described in [macOS distribution](./docs/macos-distribution.md).

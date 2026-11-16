@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Konserve is a small native macOS application for internal distribution through JAMF.
+Konserve is a small native macOS application distributed as a signed and notarized macOS package.
 
 The application will:
 
@@ -88,7 +88,7 @@ Availability means that the server can be reached. It does not imply that the cu
 
 ## 4. Server sidecar configuration
 
-Server configuration must not be embedded in the signed application bundle. This allows the same application build to be deployed to different environments through JAMF.
+Server configuration must not be embedded in the signed application bundle. This allows the same application build to be deployed to different environments without modifying its signature.
 
 Recommended shared path:
 
@@ -96,7 +96,7 @@ Recommended shared path:
 /Users/Shared/Konserve/servers.json
 ```
 
-This path is writable by all intended local users without administrator prompts, while JAMF can deploy the initial configuration without modifying the application signature.
+This path is writable by all intended local users without administrator prompts, while an administrator can deploy the initial configuration without modifying the application signature.
 
 Example:
 
@@ -146,7 +146,7 @@ The password must not be stored in:
 - Process arguments
 - URLs
 - Source code
-- JAMF package scripts
+- Package installation scripts
 
 The user should be able to choose whether successful credentials are remembered. The default should be secure and clearly explained.
 
@@ -180,7 +180,7 @@ Konserve/
 │   └── release-package.sh
 ├── docs/
 │   ├── development-flow.md
-│   ├── jamf-distribution.md
+│   ├── macos-distribution.md
 │   ├── smb-manual-testing.md
 │   └── vscode-starter-prompt.md
 └── README.md
@@ -308,7 +308,7 @@ The application always uses the real SMB services during development and release
 - Create a signed PKG.
 - Notarize with `notarytool`.
 - Staple and verify the notarization ticket.
-- Deploy through JAMF to a test group.
+- Install and test the signed package on a clean Mac.
 
 ## 11. Testing strategy
 
@@ -340,6 +340,6 @@ Release builds should use:
 4. Developer ID Installer signing where applicable.
 5. Apple notarization.
 6. Stapling and verification.
-7. JAMF deployment.
+7. Signed package deployment.
 
 Keep signing credentials and notarization credentials out of the repository. Store them in the secure build environment used for release builds.

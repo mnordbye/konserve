@@ -5,7 +5,7 @@ Use the following prompt in the VS Code planning or agent workflow.
 ```text
 We are building a small native macOS application called Konserve.
 
-This is an internal application that will be distributed only through JAMF. It will not be submitted to the Mac App Store.
+This is an internal application that will be distributed as a signed and notarized macOS package. It will not be submitted to the Mac App Store.
 
 The application helps users connect to local SMB file servers. It must be secure, small, understandable, and maintainable rather than a general-purpose file manager.
 
@@ -97,7 +97,7 @@ Use this recommended shared location:
 
 `/Users/Shared/Konserve/servers.json`
 
-This allows JAMF to deploy the configuration without changing the signed application bundle, and allows the app to edit it without administrator prompts.
+This allows an administrator to deploy the configuration without changing the signed application bundle, and allows the app to edit it without administrator prompts.
 
 Example configuration:
 
@@ -141,7 +141,7 @@ Never store passwords in:
 - Logs
 - Process arguments
 - URLs
-- JAMF scripts
+- Package installation scripts
 
 Create a testable `KeychainService` abstraction.
 
@@ -230,7 +230,7 @@ The release target must support:
 - Developer ID Application signing.
 - Hardened Runtime.
 - arm64 and x86_64 builds.
-- Signed PKG packaging for JAMF.
+- Signed and notarized PKG packaging for macOS deployment.
 - Apple notarization using `notarytool`.
 - Verification using `codesign` and `spctl`.
 
@@ -275,7 +275,7 @@ Start with the following sequence:
 11. Implement sidecar configuration loading.
 12. Implement the real SMB service behind the existing protocol.
 13. Test discovery and mounting against a real SMB server.
-14. Add release signing, packaging, notarization, and JAMF documentation.
+14. Add release signing, packaging, notarization, and macOS deployment documentation.
 
 Do not add Active Directory integration, cloud services, user accounts, analytics, background agents, or unrelated file-manager functionality.
 

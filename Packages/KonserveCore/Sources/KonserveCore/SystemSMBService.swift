@@ -3,7 +3,7 @@ import NetFS
 import Darwin
 import os
 
-private let smbLogger = Logger(subsystem: "com.internal.konserve", category: "SMB")
+private let smbLogger = Logger(subsystem: "com.gunzdev.konserve", category: "SMB")
 
 public struct SystemSMBService: SMBService {
     private let executableURL: URL

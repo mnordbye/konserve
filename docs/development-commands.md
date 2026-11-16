@@ -175,10 +175,9 @@ The file contains server metadata only. Never put usernames or passwords in
 it. If the file does not exist, Konserve displays a manual server-address
 field.
 
-The sidecar is normally deployed by JAMF, but can also be created and edited
-from the app using the gear button in the server availability section. It is
-shared by local users, so the directory and file must be writable by the
-intended users.
+The sidecar can be created and edited from the app using the gear button in the
+server availability section. It is shared by local users, so the directory and
+file must be writable by the intended users.
 
 ## Swift package development
 
@@ -237,7 +236,7 @@ The script:
 
 1. Archives a Release build.
 2. Verifies the application signature.
-3. Builds and signs a JAMF-ready PKG.
+3. Builds and signs a deployment-ready PKG.
 4. Submits the package to Apple notarization.
 5. Staples and validates the notarization ticket.
 6. Runs `spctl` verification.

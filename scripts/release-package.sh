@@ -28,8 +28,8 @@ xcodebuild \
   archive
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-/usr/sbin/pkgbuild --component "$APP_PATH" --install-location /Applications \
-  --identifier com.internal.konserve "$COMPONENT_PKG"
+/usr/bin/pkgbuild --component "$APP_PATH" --install-location /Applications \
+  --identifier com.gunzdev.konserve "$COMPONENT_PKG"
 /usr/bin/productbuild --package "$COMPONENT_PKG" \
   --sign "$DEVELOPER_ID_INSTALLER" "$PACKAGE_PATH"
 pkgutil --check-signature "$PACKAGE_PATH"
