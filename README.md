@@ -1,34 +1,39 @@
 # Konserve
 
-Konserve is a compact native macOS app for connecting to SMB servers and mounting selected shares. It is distributed as a signed and notarized macOS package.
+Konserve is a small native macOS app for connecting to SMB servers and mounting
+their shares.
 
-## Development
+![Konserve](./docs/images/konserve-window.png)
 
-Install Xcode from the Mac App Store or Apple Developer downloads, launch it once to install components and accept the license, then select its toolchain:
+## Features
 
-```bash
-sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
-xcodebuild -version
-```
+- Connect to an SMB server by hostname or IP address.
+- Discover available shares and mount selected shares in Finder.
+- Store remembered credentials in the macOS Keychain, never in the server configuration.
+- Monitor configured servers and try fallback endpoints in order.
 
-Open the repository folder in VS Code for editing and terminal work. Open [`Konserve.xcodeproj`](./Konserve.xcodeproj) in Xcode for SwiftUI previews, debugging, signing, and archiving.
+## Requirements
+
+- macOS 13 or later
+- Xcode 15 or later
+
+## Build and test
+
+Open [`Konserve.xcodeproj`](./Konserve.xcodeproj) in Xcode, or run:
 
 ```bash
 ./scripts/dev-build.sh
-./scripts/dev-run.sh
 ./scripts/test.sh
 ```
 
-The app always uses the system SMB, reachability, and mount services. Run the application with:
+Run the app locally with:
 
 ```bash
 ./scripts/dev-run.sh
 ```
 
-The app reads and edits the shared server definition file at `/Users/Shared/Konserve/servers.json`. Without that file, enter a hostname or IP address manually. Passwords are never stored in the sidecar; the “Remember” option saves them in the macOS login Keychain only after a successful connection. After entering a username, press Return to load a previously remembered credential; unchecking “Remember” and connecting removes its saved Keychain item.
+Server definitions are stored in the shared system location
+`/Users/Shared/Konserve/servers.json`. The location can be changed from the
+server settings window.
 
-Use the gear button in the server availability section to add, edit, reorder, or delete configured servers. Each server can contain multiple endpoints; they are tried from top to bottom and the first reachable endpoint is used.
-
-Real SMB share discovery has a 30-second timeout. A manually entered server can be added to the shared configuration after a successful connection; credentials are never stored in that configuration.
-
-See [the development flow](./docs/development-flow.md) and [manual SMB test procedure](./docs/smb-manual-testing.md). Release packaging and notarization are described in [macOS distribution](./docs/macos-distribution.md).
+More development and testing notes are available in [`docs/`](./docs/).
