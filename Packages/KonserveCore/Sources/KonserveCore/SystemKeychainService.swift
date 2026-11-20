@@ -56,8 +56,9 @@ public struct SystemKeychainService: KeychainService {
     private func baseQuery(server: SMBServer, username: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "Konserve/\(server.id)",
-            kSecAttrAccount as String: username
+            kSecAttrService as String: "Konserve.credentials.v2/\(server.id)",
+            kSecAttrAccount as String: username,
+            kSecUseDataProtectionKeychain as String: true
         ]
     }
 }
