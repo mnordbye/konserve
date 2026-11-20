@@ -1,5 +1,7 @@
+import AppKit
 import KonserveCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ServerSettingsView: View {
     @ObservedObject var model: ConnectorViewModel
@@ -76,10 +78,16 @@ struct ServerSettingsView: View {
                     .foregroundStyle(.red)
             }
 
-            HStack {
-                Text("/Users/Shared/Konserve/servers.json")
+            HStack(spacing: 8) {
+                Text("Config File Location: \(model.configurationFileURL.path)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Button("Change…") {
+                    chooseConfigurationLocation()
+                }
+                .controlSize(.small)
                 Spacer()
                 Button("Done") {
                     dismiss()
@@ -118,6 +126,19 @@ struct ServerSettingsView: View {
         } message: { server in
             Text("This removes the server from the shared sidecar configuration.")
         }
+    }
+
+    private func chooseConfigurationLocation() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.directoryURL = model.configurationFileURL.deletingLastPathComponent()
+        panel.prompt = "Select"
+        panel.message = "Choose an existing servers.json file, or a folder to store the configuration in."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        model.changeConfigurationLocation(to: url)
     }
 
     private func endpointSummary(for server: SMBServer) -> String {

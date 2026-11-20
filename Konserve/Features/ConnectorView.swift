@@ -72,9 +72,6 @@ struct ConnectorView: View {
     private var serverField: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !model.servers.isEmpty {
-                Text("Available Servers")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
                 Group {
                     if model.servers.count == 1 {
                         HStack {

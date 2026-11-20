@@ -147,11 +147,14 @@ Install the package on a clean test Mac and verify:
 
 ## Optional server configuration
 
-The optional machine-wide file is:
+The default machine-wide file is:
 
 ```text
 /Users/Shared/Konserve/servers.json
 ```
+
+The location can be changed in the app's server settings; the chosen path is
+stored per user in the app's preferences and used on later launches.
 
 It contains server metadata only. Never put usernames, passwords, signing
 credentials, or notarization credentials in it.

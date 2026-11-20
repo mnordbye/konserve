@@ -16,8 +16,9 @@ final class ConnectorViewModel: ObservableObject {
     @Published var selectedShareNames = Set<String>()
     @Published var statusMessage = ""
     @Published private(set) var availableShares: [SMBShare] = []
+    @Published private(set) var configurationFileURL: URL
 
-    private let configurationService: any ConfigurationService
+    private var configurationService: any ConfigurationService
     private let keychainService: any KeychainService
     private let reachabilityService: any ServerReachabilityService
     private let smbService: any SMBService
@@ -27,14 +28,28 @@ final class ConnectorViewModel: ObservableObject {
     private var processedManualAddress = ""
     private var processedUsername = ""
 
+    private static let configurationPathKey = "configurationFilePath"
+
+    private static func storedConfigurationURL() -> URL {
+        if let path = UserDefaults.standard.string(forKey: configurationPathKey), !path.isEmpty {
+            return URL(fileURLWithPath: path)
+        }
+        let url = SidecarConfigurationService.defaultURL
+        UserDefaults.standard.set(url.path, forKey: configurationPathKey)
+        return url
+    }
+
     init(
-        configurationService: any ConfigurationService = SidecarConfigurationService(),
+        configurationService: (any ConfigurationService)? = nil,
         keychainService: any KeychainService = SystemKeychainService(),
         reachabilityService: (any ServerReachabilityService)? = nil,
         smbService: (any SMBService)? = nil,
         mountService: (any MountService)? = nil
     ) {
+        let configurationFileURL = Self.storedConfigurationURL()
+        self.configurationFileURL = configurationFileURL
         self.configurationService = configurationService
+            ?? SidecarConfigurationService(fileURL: configurationFileURL)
         self.keychainService = keychainService
         self.reachabilityService = reachabilityService ?? TCPReachabilityService()
         self.smbService = smbService ?? SystemSMBService()
@@ -311,6 +326,26 @@ final class ConnectorViewModel: ObservableObject {
 
     func deleteServer(_ server: SMBServer) {
         saveServers(servers.filter { $0.id != server.id })
+    }
+
+    func changeConfigurationLocation(to selectedURL: URL) {
+        var url = selectedURL
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            url = url.appendingPathComponent("servers.json")
+        }
+        UserDefaults.standard.set(url.path, forKey: Self.configurationPathKey)
+        configurationFileURL = url
+        configurationService = SidecarConfigurationService(fileURL: url)
+        if FileManager.default.fileExists(atPath: url.path) {
+            loadConfiguration()
+            Task {
+                await checkConfiguredServers()
+            }
+        } else {
+            // Carry the current servers over to the new location.
+            saveServers(servers)
+        }
     }
 
     private func selectedConnectionServer() -> SMBServer? {
