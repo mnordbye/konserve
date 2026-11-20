@@ -44,6 +44,10 @@ final class ConnectorViewModel: ObservableObject {
         availableShares
     }
 
+    var canAddCurrentServer: Bool {
+        !isCurrentServerConfigured
+    }
+
     var isBusy: Bool {
         switch connectionState {
         case .checkingServer, .authenticating, .findingShares, .mounting:
@@ -172,7 +176,7 @@ final class ConnectorViewModel: ObservableObject {
         activeServers.removeAll()
         password = ""
         rememberCredentials = false
-        addToConfiguration = isCurrentServerConfigured
+        addToConfiguration = canAddCurrentServer
         connectionState = .idle
         availableShares = []
         selectedShareNames.removeAll()

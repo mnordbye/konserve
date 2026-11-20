@@ -152,7 +152,7 @@ struct ConnectorView: View {
                 .disabled(model.isBusy)
             Toggle("Remember Server", isOn: $model.addToConfiguration)
                 .font(.callout)
-                .disabled(model.isBusy)
+                .disabled(model.isBusy || !model.canAddCurrentServer)
             Button {
                 Task { await model.connect() }
             } label: {
@@ -168,15 +168,17 @@ struct ConnectorView: View {
     private var shareContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
+                Text("Available shares")
+                    .font(.headline)
                 Spacer()
                 Button {
                     model.returnToConnectionForm()
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .accessibilityLabel("Back to server connection")
+                    Label("Back", systemImage: "xmark")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .accessibilityLabel("Back to server connection")
                 .disabled(model.isBusy)
             }
             if case .noShares = model.connectionState {
@@ -184,8 +186,6 @@ struct ConnectorView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Available shares")
-                    .font(.headline)
                 List(model.shares.sorted {
                     $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
                 }) { share in
@@ -202,6 +202,7 @@ struct ConnectorView: View {
                 }
                 .listStyle(.inset)
                 .frame(minHeight: 140, maxHeight: 210)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 Button {
                     Task { await model.mountSelectedShares() }
                 } label: {
@@ -211,6 +212,12 @@ struct ConnectorView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(model.selectedShareNames.isEmpty || model.isBusy)
             }
+        }
+        .padding(14)
+        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.quaternary, lineWidth: 1)
         }
     }
 
