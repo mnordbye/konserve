@@ -11,6 +11,7 @@ their shares.
 - Discover available shares and mount selected shares in Finder.
 - Store remembered credentials in the macOS Keychain, never in the server configuration.
 - Monitor configured servers and try fallback endpoints in order.
+- Deploy a shared JSON configuration to preconfigure client installations.
 
 ## Requirements
 
