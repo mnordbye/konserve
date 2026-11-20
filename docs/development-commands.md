@@ -216,7 +216,22 @@ when cleaning build output.
 
 Release packaging requires organization-specific Developer ID certificates and
 a configured `notarytool` Keychain profile. Keep those credentials outside the
-repository.
+repository. The complete repeatable release procedure—including certificate
+checks, notarization setup, package verification, and clean-Mac testing—is in
+[`macos-distribution.md`](./macos-distribution.md).
+
+The release command produces:
+
+```text
+.build/release/Konserve.pkg
+```
+
+From the repository root, run:
+
+```bash
+./scripts/release-package.sh
+open .build/release
+```
 
 Set the required environment variables:
 

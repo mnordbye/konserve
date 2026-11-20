@@ -17,7 +17,7 @@ Install Xcode, open it once, accept the license, and select its command-line
 tools:
 
 ```bash
-sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+sudo -A xcode-select --switch /Applications/Xcode.app/Contents/Developer
 xcodebuild -version
 ```
 
@@ -31,8 +31,28 @@ The login Keychain must contain both certificates and their private keys:
 Check the installed identities:
 
 ```bash
-security find-identity -v -p codesigning
+security find-identity -v -p basic
 ```
+
+The output must include both the Developer ID Application and Developer ID
+Installer identities. The installer identity may not appear in the
+`codesigning` policy because it signs installer packages rather than the
+application binary. To check the login Keychain explicitly:
+
+```bash
+security find-identity -v -p basic \
+  "$HOME/Library/Keychains/login.keychain-db"
+security find-certificate -a \
+  -c "Developer ID Installer" \
+  "$HOME/Library/Keychains/login.keychain-db"
+```
+
+Both certificates must have their private keys on this Mac. In Keychain
+Access, expand each certificate under **My Certificates** and confirm that a
+private key is nested beneath it. If the certificate appears but
+`find-identity` does not list it as valid, install the certificate on the Mac
+that created its certificate signing request, or import the matching private
+key.
 
 If `productbuild` reports `CSSMERR_CSP_USER_CANCELED`, macOS canceled access
 to the installer private key. Open Keychain Access, locate the
@@ -57,6 +77,9 @@ Verify the profile:
 ```bash
 xcrun notarytool history --keychain-profile konserve-notary
 ```
+
+The profile is stored in the user's Keychain. It is not stored in the
+repository and must be configured separately on each release Mac.
 
 Never commit certificates, private keys, passwords, or notarization
 credentials.
@@ -95,6 +118,15 @@ export DEVELOPER_ID_INSTALLER="Developer ID Installer: Your Name (TEAMID)"
 export NOTARY_PROFILE="konserve-notary"
 ```
 
+Confirm that the certificate names match the identities reported by
+`security find-identity -v -p basic`:
+
+```bash
+printf '%s\n' "$DEVELOPER_ID_APPLICATION"
+printf '%s\n' "$DEVELOPER_ID_INSTALLER"
+printf '%s\n' "$NOTARY_PROFILE"
+```
+
 Run the complete release pipeline:
 
 ```bash
@@ -120,8 +152,22 @@ The final deliverable is:
 .build/release/Konserve.pkg
 ```
 
-Intermediate files in the same directory include the Xcode archive and
-component package.
+The package can be opened in Finder from the repository root with:
+
+```bash
+open .build/release
+```
+
+Intermediate files in the same directory include:
+
+```text
+.build/release/Konserve.xcarchive
+.build/release/Konserve-component.pkg
+```
+
+The script waits for Apple's notarization result. If it fails, inspect the
+`notarytool` output before retrying; do not distribute a package unless the
+notarization, stapling, and Gatekeeper steps all succeed.
 
 ## Verifying the deliverable
 
@@ -136,6 +182,22 @@ shasum -a 256 .build/release/Konserve.pkg
 The expected result is a package signed by Apple-issued Developer ID Installer
 credentials, trusted by the Apple notary service, and accepted by Gatekeeper.
 Record the SHA-256 checksum and the notarization submission ID with the release.
+
+To inspect the archived app's version, icon metadata, and architectures:
+
+```bash
+APP_PATH=".build/release/Konserve.xcarchive/Products/Applications/Konserve.app"
+
+plutil -p "$APP_PATH/Contents/Info.plist" | \
+  grep -E 'CFBundle(ShortVersionString|Version|Icon(File|Name))'
+
+test -f "$APP_PATH/Contents/Resources/AppIcon.icns"
+lipo -archs "$APP_PATH/Contents/MacOS/Konserve"
+```
+
+The expected version and build must match the release being published, the
+icon resource must exist, and the architecture output must contain both
+`arm64` and `x86_64`.
 
 Install the package on a clean test Mac and verify:
 
