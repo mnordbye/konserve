@@ -46,6 +46,32 @@ public struct SystemKeychainService: KeychainService {
         return SMBCredentials(username: username, password: password)
     }
 
+    public func firstCredentials(for server: SMBServer) throws -> SMBCredentials? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service(for: server),
+            kSecReturnAttributes as String: true,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound {
+            return nil
+        }
+        guard status == errSecSuccess else {
+            throw KeychainServiceError.operationFailed(status)
+        }
+        guard let item = result as? [String: Any],
+              let username = item[kSecAttrAccount as String] as? String,
+              let data = item[kSecValueData as String] as? Data,
+              let password = String(data: data, encoding: .utf8)
+        else {
+            throw KeychainServiceError.invalidPasswordEncoding
+        }
+        return SMBCredentials(username: username, password: password)
+    }
+
     public func deleteCredentials(for server: SMBServer, username: String) throws {
         let status = SecItemDelete(baseQuery(server: server, username: username) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
@@ -56,9 +82,12 @@ public struct SystemKeychainService: KeychainService {
     private func baseQuery(server: SMBServer, username: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "Konserve.credentials.v2/\(server.id)",
-            kSecAttrAccount as String: username,
-            kSecUseDataProtectionKeychain as String: true
+            kSecAttrService as String: service(for: server),
+            kSecAttrAccount as String: username
         ]
+    }
+
+    private func service(for server: SMBServer) -> String {
+        "Konserve.credentials.v2/\(server.id)"
     }
 }

@@ -24,6 +24,8 @@ final class ConnectorViewModel: ObservableObject {
     private let mountService: any MountService
     private var activeServers: [String: SMBServer] = [:]
     private var isCheckingAvailability = false
+    private var processedManualAddress = ""
+    private var processedUsername = ""
 
     init(
         configurationService: any ConfigurationService = SidecarConfigurationService(),
@@ -134,9 +136,13 @@ final class ConnectorViewModel: ObservableObject {
                     try keychainService.deleteCredentials(for: reachableServer, username: username)
                 }
             } catch {
+                var detail = ""
+                if case KeychainServiceError.operationFailed(let status) = error {
+                    detail = " (error \(status))"
+                }
                 statusMessage = rememberCredentials
-                    ? "Connected, but the credentials could not be saved to Keychain."
-                    : "Connected, but the saved credentials could not be removed from Keychain."
+                    ? "Connected, but the credentials could not be saved to Keychain\(detail)."
+                    : "Connected, but the saved credentials could not be removed from Keychain\(detail)."
             }
         } catch {
             if case SMBServiceError.invalidCredentials = error {
@@ -172,6 +178,12 @@ final class ConnectorViewModel: ObservableObject {
         }
     }
 
+    func manualAddressDidChange() {
+        guard manualAddress != processedManualAddress else { return }
+        processedManualAddress = manualAddress
+        serverSelectionDidChange()
+    }
+
     func serverSelectionDidChange() {
         activeServers.removeAll()
         password = ""
@@ -185,6 +197,8 @@ final class ConnectorViewModel: ObservableObject {
     }
 
     func usernameDidChange() {
+        guard username != processedUsername else { return }
+        processedUsername = username
         password = ""
         rememberCredentials = false
     }
@@ -192,7 +206,18 @@ final class ConnectorViewModel: ObservableObject {
     func useConfiguredServer(_ server: SMBServer) {
         selectedServerID = server.id
         manualAddress = server.endpoints[0].host
+        processedManualAddress = manualAddress
         serverSelectionDidChange()
+    }
+
+    func connectToConfiguredServer(_ server: SMBServer) async {
+        useConfiguredServer(server)
+        guard let saved = try? keychainService.firstCredentials(for: server) else { return }
+        username = saved.username
+        processedUsername = saved.username
+        password = saved.password
+        rememberCredentials = true
+        await connect()
     }
 
     func returnToConnectionForm() {

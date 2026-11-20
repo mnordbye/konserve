@@ -146,6 +146,17 @@ struct KonserveCoreTests {
     }
 
     @Test
+    func keychainFindsFirstSavedCredentialsByServerAlone() throws {
+        let server = try SMBServer(id: "media", displayName: "Media", host: "media.example.local")
+        let other = try SMBServer(id: "backup", displayName: "Backup", host: "backup.example.local")
+        let keychain = InMemoryKeychainService()
+        #expect(try keychain.firstCredentials(for: server) == nil)
+        try keychain.save(SMBCredentials(username: "smb-user", password: "secret"), for: server)
+        #expect(try keychain.firstCredentials(for: server) == SMBCredentials(username: "smb-user", password: "secret"))
+        #expect(try keychain.firstCredentials(for: other) == nil)
+    }
+
+    @Test
     func processOutputIsRedactedAndPasswordNeverEntersArguments() throws {
         let password = "do-not-leak"
         let output = ProcessOutputRedactor.redact(

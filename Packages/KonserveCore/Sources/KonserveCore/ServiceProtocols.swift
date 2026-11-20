@@ -7,6 +7,7 @@ public protocol SMBService: Sendable {
 public protocol KeychainService: Sendable {
     func save(_ credentials: SMBCredentials, for server: SMBServer) throws
     func credentials(for server: SMBServer, username: String) throws -> SMBCredentials?
+    func firstCredentials(for server: SMBServer) throws -> SMBCredentials?
     func deleteCredentials(for server: SMBServer, username: String) throws
 }
 
@@ -111,6 +112,17 @@ public final class InMemoryKeychainService: KeychainService, @unchecked Sendable
         defer { lock.unlock() }
         guard let password = entries[key(server: server, username: username)] else { return nil }
         return SMBCredentials(username: username, password: password)
+    }
+
+    public func firstCredentials(for server: SMBServer) throws -> SMBCredentials? {
+        lock.lock()
+        defer { lock.unlock() }
+        let prefix = "\(server.id)\u{0}"
+        return entries
+            .filter { $0.key.hasPrefix(prefix) }
+            .sorted { $0.key < $1.key }
+            .first
+            .map { SMBCredentials(username: String($0.key.dropFirst(prefix.count)), password: $0.value) }
     }
 
     public func deleteCredentials(for server: SMBServer, username: String) throws {

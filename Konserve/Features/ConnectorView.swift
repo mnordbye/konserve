@@ -105,14 +105,14 @@ struct ConnectorView: View {
                 .autocorrectionDisabled()
                 .disabled(model.isBusy)
                 .onChange(of: model.manualAddress) { _ in
-                    model.serverSelectionDidChange()
+                    model.manualAddressDidChange()
                 }
         }
     }
 
     private func configuredServerButton(_ server: SMBServer) -> some View {
         Button {
-            model.useConfiguredServer(server)
+            Task { await model.connectToConfiguredServer(server) }
         } label: {
             HStack(spacing: 8) {
                 Circle()

@@ -138,10 +138,11 @@ service: Konserve.credentials.v2/<server-id-or-host>
 account: <SMB username>
 ```
 
-Use the macOS data-protection Keychain for these items. This keeps credential
-reads within the app's Keychain namespace instead of reusing legacy login
-Keychain items that can trigger an interactive access prompt after an app
-signature changes.
+Store these items in the login Keychain under the versioned service namespace
+above. Sign Debug and Release builds with the same stable Developer ID
+identity: Keychain access rules follow the app's code signature, so an
+unstable (ad-hoc) signature makes every rebuild look like a new app and
+triggers an interactive Keychain authorization prompt on the next read.
 
 The password must not be stored in:
 
